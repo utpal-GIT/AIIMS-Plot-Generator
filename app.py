@@ -9,6 +9,7 @@ Auth (Phase 3) and hosting (Phase 4) are added later; this phase is the
 core port of the desktop tool to the web, OLS-only.
 """
 
+import contextlib
 import io
 import math
 
@@ -117,14 +118,16 @@ with st.sidebar:
 # --------------------------------------------------------------------------
 st.title("Method Comparison Plot Generator")
 
-tab_names = ["Data", "Plot", "Statistics"]
+# Managers get an Admin tab; everyone sees Data + Plot + Statistics stacked on
+# one scrolling page (no tabs among the three).
 if is_manager:
-    tab_names.append("Admin")
-tabs = st.tabs(tab_names)
-tab_data, tab_plot, tab_stats = tabs[0], tabs[1], tabs[2]
-tab_admin = tabs[3] if is_manager else None
+    main_tab, admin_tab = st.tabs(["Plot generator", "Admin"])
+else:
+    main_tab, admin_tab = contextlib.nullcontext(), None
 
-with tab_data:
+with main_tab:
+    # ---------------- Data ----------------
+    st.header("Data")
     st.caption("Enter or edit the data below. Two numeric columns are required: "
                "**Reference** and **Measured**. Uploading an Excel file pre-fills this table.")
     seed_df = uploaded_df if uploaded_df is not None else DEFAULT_DATA
@@ -145,32 +148,34 @@ with tab_data:
         },
     )
 
-# Compute on demand and stash the result in session so all tabs can read it.
-if generate:
-    try:
-        result = generate_plot(
-            edited_df,
-            x_basis=x_basis,
-            threshold=float(threshold),
-            val_below=float(val_below),
-            type_below=type_below,
-            val_above=float(val_above),
-            type_above=type_above,
-            title=title,
-            x_label=x_label,
-            y_label=y_label,
-            show_normality=show_normality,
-        )
-        st.session_state["result"] = result
-        st.session_state["error"] = None
-    except Exception as e:
-        st.session_state["result"] = None
-        st.session_state["error"] = str(e)
+    # Compute on demand and stash the result in session.
+    if generate:
+        try:
+            result = generate_plot(
+                edited_df,
+                x_basis=x_basis,
+                threshold=float(threshold),
+                val_below=float(val_below),
+                type_below=type_below,
+                val_above=float(val_above),
+                type_above=type_above,
+                title=title,
+                x_label=x_label,
+                y_label=y_label,
+                show_normality=show_normality,
+            )
+            st.session_state["result"] = result
+            st.session_state["error"] = None
+        except Exception as e:
+            st.session_state["result"] = None
+            st.session_state["error"] = str(e)
 
-result = st.session_state.get("result")
-error = st.session_state.get("error")
+    result = st.session_state.get("result")
+    error = st.session_state.get("error")
 
-with tab_plot:
+    # ---------------- Plot ----------------
+    st.divider()
+    st.header("Plot")
     if error:
         st.error(f"Could not generate the plot: {error}")
     elif result is None:
@@ -193,7 +198,9 @@ with tab_plot:
                                file_name="method_comparison_data.csv", mime="text/csv",
                                use_container_width=True)
 
-with tab_stats:
+    # ---------------- Statistics ----------------
+    st.divider()
+    st.header("Statistics")
     if result is None:
         st.info("Generate a plot to see the statistics.")
     else:
@@ -234,6 +241,6 @@ with tab_stats:
                 "X-axis basis": s["x_basis"],
             })
 
-if tab_admin is not None:
-    with tab_admin:
+if admin_tab is not None:
+    with admin_tab:
         auth.render_admin_panel(config, current_username, current_role)
