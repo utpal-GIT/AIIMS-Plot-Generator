@@ -107,9 +107,6 @@ with st.sidebar:
     with c4:
         type_above = st.selectbox("Type >", TOL_OPTIONS, index=1)
 
-    st.subheader("Options")
-    show_normality = st.checkbox("Show normality (Shapiro-Wilk) info", value=True)
-
     generate = st.button("Generate plot", type="primary", use_container_width=True)
 
 
@@ -162,7 +159,6 @@ with main_tab:
                 title=title,
                 x_label=x_label,
                 y_label=y_label,
-                show_normality=show_normality,
             )
             st.session_state["result"] = result
             st.session_state["error"] = None
@@ -205,41 +201,37 @@ with main_tab:
         st.info("Generate a plot to see the statistics.")
     else:
         s = result.stats
-        m1, m2, m3 = st.columns(3)
         rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
                if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
-        m1.metric("Analysis range", rng)
-        m2.metric("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°")
-        m3.metric("OLS slope", f"{s['slope']:.4f}")
 
-        m4, m5, m6 = st.columns(3)
-        m4.metric("Mean difference", f"{s['mean_diff']:.3f}")
-        m5.metric("Total points", s["n_total"])
-        m6.metric("Points in valid range", s["n_in_range"])
+        with st.container(border=True):
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Valid analysis range", rng)
+            m2.metric("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°")
+            m3.metric("OLS slope", f"{s['slope']:.4f}")
+            m4, m5, m6 = st.columns(3)
+            m4.metric("Mean difference", f"{s['mean_diff']:.3f}")
+            m5.metric("Total points", s["n_total"])
+            m6.metric("Points in valid range", s["n_in_range"])
 
-        st.subheader("Outlier breakdown")
         ov, vr = s["overall"], s["valid_range"]
-        breakdown = pd.DataFrame(
-            {
-                "Category": ["Outliers (total)", "Overestimated", "Underestimated"],
-                "Overall — n": [ov["outliers_n"], ov["over_n"], ov["under_n"]],
-                "Overall — %": [f"{ov['outliers_pct']:.1f}%", f"{ov['over_pct']:.1f}%", f"{ov['under_pct']:.1f}%"],
-                "Valid range — n": [vr["outliers_n"], vr["over_n"], vr["under_n"]],
-                "Valid range — %": [f"{vr['outliers_pct']:.1f}%", f"{vr['over_pct']:.1f}%", f"{vr['under_pct']:.1f}%"],
-            }
-        )
-        st.dataframe(breakdown, use_container_width=True, hide_index=True)
-        st.caption("Overall % is relative to all data points; valid-range % is relative to "
-                   "points inside the analysis range.")
-
-        with st.expander("More statistics"):
-            st.write({
-                "Mean diff 95% CI": f"[{s['ci_mean_lower']:.3f}, {s['ci_mean_upper']:.3f}]",
-                "Limits of Agreement": f"[{s['loa_lower']:.3f}, {s['loa_upper']:.3f}]",
-                "OLS intercept": round(s["intercept"], 4),
-                "Normality (Shapiro-Wilk p)": s["p_value"],
-                "X-axis basis": s["x_basis"],
-            })
+        c_over, c_valid = st.columns(2)
+        with c_over:
+            with st.container(border=True):
+                st.markdown("**Outliers — overall**")
+                st.caption("Across all data points")
+                a, b, c = st.columns(3)
+                a.metric("Total", ov["outliers_n"], f"{ov['outliers_pct']:.1f}%", delta_color="off")
+                b.metric("Over", ov["over_n"], f"{ov['over_pct']:.1f}%", delta_color="off")
+                c.metric("Under", ov["under_n"], f"{ov['under_pct']:.1f}%", delta_color="off")
+        with c_valid:
+            with st.container(border=True):
+                st.markdown("**Outliers — valid range**")
+                st.caption("Inside the analysis range")
+                a, b, c = st.columns(3)
+                a.metric("Total", vr["outliers_n"], f"{vr['outliers_pct']:.1f}%", delta_color="off")
+                b.metric("Over", vr["over_n"], f"{vr['over_pct']:.1f}%", delta_color="off")
+                c.metric("Under", vr["under_n"], f"{vr['under_pct']:.1f}%", delta_color="off")
 
 if admin_tab is not None:
     with admin_tab:

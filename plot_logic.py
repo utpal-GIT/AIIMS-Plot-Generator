@@ -12,7 +12,6 @@ import matplotlib
 matplotlib.use("Agg")  # headless backend for web/server rendering
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-import scipy.stats as stats
 
 
 # --- HELPER: INTERSECTIONS BETWEEN TWO DISCRETE CURVES ---
@@ -54,7 +53,6 @@ def generate_plot(
     title="Method Comparison",
     x_label=None,
     y_label="Difference (Measured - Reference)",
-    show_normality=True,
 ):
     """
     Build the method-comparison plot from a dataframe with columns
@@ -109,16 +107,6 @@ def generate_plot(
     # Angle between the (horizontal) mean-diff line and the OLS line,
     # in data units: mean-diff slope = 0, so angle = atan(OLS slope).
     ols_angle_deg = float(np.degrees(np.arctan(slope)))
-
-    # Optional normality info (display only — model is always OLS now).
-    is_normal = None
-    p_value = None
-    if show_normality:
-        try:
-            _, p_value = stats.shapiro(df["X"])
-            is_normal = p_value >= 0.05
-        except Exception:
-            is_normal, p_value = None, None
 
     def get_reg_predictions(x_arr):
         x_arr = np.asarray(x_arr, dtype=float)
@@ -233,75 +221,74 @@ def generate_plot(
     df_valid = df_in_x[~df_in_x["is_outlier"]]
     df_outliers_in = df_in_x[df_in_x["is_outlier"]]
 
-    # ---- 8. Plot ----
-    fig, ax = plt.subplots(figsize=(13, 7))
+    # ---- 8. Plot (modern styling) ----
+    fig, ax = plt.subplots(figsize=(12, 6.5))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+    ax.set_axisbelow(True)
 
-    ax.scatter(df_valid["X"], df_valid["Diff"], color="#5fad56", s=25,
-               label="Valid (in analysis & tolerance ranges)", alpha=0.7, zorder=5)
-    ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#ec7d10", s=25,
-               label="Outlier (in analysis, outside tolerance)", alpha=0.7, zorder=5)
-    ax.scatter(df_out_x["X"], df_out_x["Diff"], color="grey", s=20,
-               label="Excluded (out of analysis range)", alpha=0.7, zorder=4)
+    # Valid region — light green shading behind everything.
+    if np.isfinite(x_min) and np.isfinite(x_max):
+        ax.axvspan(x_min, x_max, color="#86efac", alpha=0.30, lw=0, zorder=0,
+                   label="Valid region")
 
-    ax.plot(df["X"], mean_vals, color="blue", lw=2, label=f"{reg_name} line")
-    ax.fill_between(df["X"], ci_lower_vals, ci_upper_vals, color="blue",
-                    alpha=0.15, label=f"95% {reg_name} CI")
+    # Zero reference line.
+    ax.axhline(0, color="#94a3b8", lw=1, zorder=1)
 
-    ax.axhline(mean_diff, color="red", lw=2, label=f"Mean difference ({mean_diff:.3f})")
-    ax.axhspan(ci_mean_lower, ci_mean_upper, color="red", alpha=0.2, label="95% mean diff CI")
+    # OLS regression + 95% CI.
+    ax.plot(df["X"], mean_vals, color="#2563eb", lw=2.2, label="OLS regression", zorder=4)
+    ax.fill_between(df["X"], ci_lower_vals, ci_upper_vals, color="#2563eb",
+                    alpha=0.15, lw=0, label="95% OLS CI", zorder=3)
 
-    ax.axhline(loa_upper, color="#9b5de5", linestyle="--", alpha=0.7, label="Upper LoA (1.96 SD)")
-    ax.axhline(loa_lower, color="#6f1a07", linestyle="--", alpha=0.7, label="Lower LoA (1.96 SD)")
+    # Mean difference + 95% CI band.
+    ax.axhline(mean_diff, color="#ef4444", lw=1.8,
+               label=f"Mean difference ({mean_diff:.3f})", zorder=3)
+    ax.axhspan(ci_mean_lower, ci_mean_upper, color="#ef4444", alpha=0.12, lw=0, zorder=1)
 
+    # Limits of Agreement.
+    ax.axhline(loa_upper, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85,
+               label="Limits of Agreement (±1.96 SD)", zorder=2)
+    ax.axhline(loa_lower, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85, zorder=2)
+
+    # Tolerance limits.
     if x_below is not None:
-        ax.plot(x_below, tol_upper_below, color="#0ead69", lw=1.5, label="Tolerance limit")
-        ax.plot(x_below, tol_lower_below, color="#0ead69", lw=1.5)
+        ax.plot(x_below, tol_upper_below, color="#059669", lw=1.6, label="Tolerance limit", zorder=2)
+        ax.plot(x_below, tol_lower_below, color="#059669", lw=1.6, zorder=2)
     if x_above is not None:
         label_above = "Tolerance limit" if x_below is None else None
-        ax.plot(x_above, tol_upper_above, color="#0ead69", lw=1.5, label=label_above)
-        ax.plot(x_above, tol_lower_above, color="#0ead69", lw=1.5)
+        ax.plot(x_above, tol_upper_above, color="#059669", lw=1.6, label=label_above, zorder=2)
+        ax.plot(x_above, tol_lower_above, color="#059669", lw=1.6, zorder=2)
 
+    # Data points — white-edged markers.
+    ax.scatter(df_valid["X"], df_valid["Diff"], color="#16a34a", s=45, edgecolor="white",
+               linewidth=0.6, label="Valid", alpha=0.95, zorder=6)
+    ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#f59e0b", s=45, edgecolor="white",
+               linewidth=0.6, label="Outlier", alpha=0.95, zorder=6)
+    ax.scatter(df_out_x["X"], df_out_x["Diff"], color="#cbd5e1", s=38, edgecolor="white",
+               linewidth=0.6, label="Excluded", alpha=0.95, zorder=5)
+
+    # Valid-range boundary markers.
     for bx in (x_min, x_max):
         if np.isfinite(bx):
-            ax.axvline(x=bx, color="black", linestyle=":", alpha=0.6, zorder=2)
-            ax.text(bx, 0.01, f" x={bx:.2f}", transform=ax.get_xaxis_transform(),
-                    rotation=90, va="bottom", ha="right", color="black",
-                    fontsize=9, fontweight="bold")
+            ax.axvline(x=bx, color="#15803d", linestyle="--", lw=1, alpha=0.7, zorder=2)
+            ax.text(bx, 0.02, f" x={bx:.2f}", transform=ax.get_xaxis_transform(),
+                    rotation=90, va="bottom", ha="right", color="#15803d",
+                    fontsize=8.5, fontweight="semibold", zorder=7)
 
-    ax.axhline(0, color="black", lw=1, zorder=1)
-    ax.set_title(title, fontsize=14, fontweight="bold")
-    ax.set_xlabel(x_label, fontsize=12)
-    ax.set_ylabel(y_label, fontsize=12)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
+    # Modern spines / grid / ticks.
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color("#d0d0d0")
+    ax.grid(axis="y", color="#eef0f2", lw=1.0)
+    ax.tick_params(colors="#666666", labelsize=10, length=0)
 
-    min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
-    max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
-    norm_line = ""
-    if show_normality and p_value is not None:
-        norm_line = f"Data distribution: {'Normal' if is_normal else 'Non-Normal'} (p={p_value:.3f})\n"
+    ax.set_title(title, fontsize=15, fontweight="semibold", color="#1f2937", loc="left", pad=12)
+    ax.set_xlabel(x_label, fontsize=11, color="#374151")
+    ax.set_ylabel(y_label, fontsize=11, color="#374151")
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
+              frameon=False, fontsize=9)
 
-    info_text = (
-        f"{norm_line}"
-        f"Active model: {reg_name}\n"
-        f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°\n\n"
-        f"Analysis range:\n"
-        f"   • Min X: {min_text}\n"
-        f"   • Max X: {max_text}\n\n"
-        f"Total data points: {n_total}\n"
-        f"Points in valid range: {len(df_in_x)}\n\n"
-        f"Outliers (overall): {overall['outliers_n']} ({overall['outliers_pct']:.1f}%)\n"
-        f"   • Over: {overall['over_n']} ({overall['over_pct']:.1f}%)\n"
-        f"   • Under: {overall['under_n']} ({overall['under_pct']:.1f}%)\n"
-        f"Outliers (valid range): {valid_range['outliers_n']} ({valid_range['outliers_pct']:.1f}%)\n"
-        f"   • Over: {valid_range['over_n']} ({valid_range['over_pct']:.1f}%)\n"
-        f"   • Under: {valid_range['under_n']} ({valid_range['under_pct']:.1f}%)"
-    )
-    ax.annotate(info_text, xy=(1.05, 0.55), xycoords="axes fraction",
-                fontsize=10, color="#b35f00", weight="bold", va="top", ha="left",
-                bbox=dict(facecolor="white", alpha=0.8, edgecolor="lightgray", pad=6),
-                annotation_clip=False)
-
-    ax.grid(False)
     fig.tight_layout()
 
     stats_dict = {
@@ -319,8 +306,6 @@ def generate_plot(
         "x_max": x_max,
         "n_total": n_total,
         "n_in_range": len(df_in_x),
-        "is_normal": is_normal,
-        "p_value": None if p_value is None else float(p_value),
         "overall": overall,
         "valid_range": valid_range,
         "x_basis": x_basis,
