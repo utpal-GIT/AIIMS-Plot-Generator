@@ -71,74 +71,88 @@ def page_dashboard():
                    "to set its tolerance limits, then return here to plot.")
         return
 
-    # --- Test parameter + options ---
-    top = st.columns([2, 1, 2])
-    with top[0]:
+    # --- Test parameter + improved tolerance display ---
+    head = st.columns([1, 2])
+    with head[0]:
         param_name = st.selectbox("Test parameter", list(params.keys()))
     p = params[param_name]
-    with top[1]:
-        x_basis = st.selectbox("X-axis basis", ["Reference", "Average"],
-                               help="Average = (Reference + Measured) / 2 (Bland-Altman).")
-    with top[2]:
-        unit_txt = f" ({p['unit']})" if p.get("unit") else ""
-        st.caption(f"**Tolerance for {param_name}{unit_txt}**")
-        st.caption(
-            f"Threshold {p['threshold']:g} · "
-            f"below: {p['val_below']:g} {p['type_below'].split()[0]} · "
-            f"above: {p['val_above']:g} {p['type_above'].split()[0]}"
-        )
-
-    with st.expander("Labels & title"):
-        lc = st.columns(3)
-        default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
-        title = lc[0].text_input("Plot title", value=param_name)
-        x_label = lc[1].text_input("X-axis label", value=default_x)
-        y_label = lc[2].text_input("Y-axis label", value="Difference (Measured - Reference)")
+    unit_txt = f" ({p['unit']})" if p.get("unit") else ""
+    with head[1]:
+        with st.container(border=True):
+            st.markdown(f"**Tolerance settings — {param_name}{unit_txt}**")
+            tc = st.columns(3)
+            tc[0].metric("Threshold (X)", f"{p['threshold']:g}")
+            tc[1].metric("Below threshold", _fmt_tol(p["val_below"], p["type_below"]),
+                         help=p["type_below"])
+            tc[2].metric("Above threshold", _fmt_tol(p["val_above"], p["type_above"]),
+                         help=p["type_above"])
+            st.caption("Applied to |Measured − Reference|.  “%” = percent of the X value; "
+                       "otherwise an absolute difference.  Edit in **Configurations**.")
 
     st.divider()
 
-    # --- Data ---
-    st.subheader("Data")
-    mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
+    # --- Data (left)  +  Statistics (right) ---
+    data_col, stats_col = st.columns(2, gap="large")
+    with data_col:
+        st.subheader("Data")
+        mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
 
-    if "data_df" not in st.session_state:
-        st.session_state["data_df"] = pd.DataFrame({"Reference": [None] * 8, "Measured": [None] * 8})
+        if "data_df" not in st.session_state:
+            st.session_state["data_df"] = pd.DataFrame({"Reference": [None] * 8, "Measured": [None] * 8})
 
-    if mode == "Upload Excel":
-        up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
-        sheet = st.text_input("Sheet name", value="Sheet1")
-        if up is not None:
-            try:
-                udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
-                for col in ["Reference", "Measured"]:
-                    if col not in udf.columns:
-                        udf[col] = None
-                st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
-                st.success(f"Loaded {len(st.session_state['data_df'])} rows.")
-            except Exception as e:
-                st.error(f"Could not read the file: {e}")
+        if mode == "Upload Excel":
+            up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
+            sheet = st.text_input("Sheet name", value="Sheet1")
+            if up is not None:
+                try:
+                    udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
+                    for col in ["Reference", "Measured"]:
+                        if col not in udf.columns:
+                            udf[col] = None
+                    st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
+                    st.success(f"Loaded {len(st.session_state['data_df'])} rows.")
+                except Exception as e:
+                    st.error(f"Could not read the file: {e}")
 
-    base = st.session_state["data_df"].copy()
-    for col in ["Reference", "Measured"]:
-        if col not in base.columns:
-            base[col] = None
-    base = base[["Reference", "Measured"]].reset_index(drop=True)
-    base.insert(0, "Sl. No", range(1, len(base) + 1))
+        base = st.session_state["data_df"].copy()
+        for col in ["Reference", "Measured"]:
+            if col not in base.columns:
+                base[col] = None
+        base = base[["Reference", "Measured"]].reset_index(drop=True)
+        base.insert(0, "Sl. No", range(1, len(base) + 1))
 
-    edited = st.data_editor(
-        base,
-        num_rows="dynamic",
-        use_container_width=True,
-        column_config={
-            "Sl. No": st.column_config.NumberColumn("Sl. No", disabled=True, width="small"),
-            "Reference": st.column_config.NumberColumn("Reference", help="Reference / gold-standard value"),
-            "Measured": st.column_config.NumberColumn("Measured", help="Value from the method under test"),
-        },
-    )
-    st.session_state["data_df"] = edited.drop(columns=["Sl. No"]).reset_index(drop=True)
-    edited_df = st.session_state["data_df"]
+        edited = st.data_editor(
+            base, num_rows="dynamic", use_container_width=True,
+            column_config={
+                "Sl. No": st.column_config.NumberColumn("Sl. No", disabled=True, width="small"),
+                "Reference": st.column_config.NumberColumn("Reference", help="Reference / gold-standard value"),
+                "Measured": st.column_config.NumberColumn("Measured", help="Value from the method under test"),
+            },
+        )
+        st.session_state["data_df"] = edited.drop(columns=["Sl. No"]).reset_index(drop=True)
+        edited_df = st.session_state["data_df"]
 
-    if st.button("Generate plot", type="primary"):
+    stats_box = stats_col.container()  # filled after compute so it sits beside the table
+
+    st.divider()
+
+    # --- Plot: customizations at the top, then the plot ---
+    st.subheader("Plot")
+    with st.container(border=True):
+        st.markdown("**Plot customization**")
+        cc = st.columns([1, 1.3, 1.3, 1.3])
+        x_basis = cc[0].selectbox("X-axis basis", ["Reference", "Average"],
+                                  help="Average = (Reference + Measured) / 2 (Bland–Altman).")
+        default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
+        title = cc[1].text_input("Plot title", value=param_name)
+        x_label = cc[2].text_input("X-axis label", value=default_x)
+        y_label = cc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
+        generate = st.button("Generate plot", type="primary")
+
+    plot_box = st.container()
+
+    # --- Compute (after all inputs are defined) ---
+    if generate:
         try:
             result = generate_plot(
                 edited_df, x_basis=x_basis,
@@ -148,7 +162,6 @@ def page_dashboard():
             )
             st.session_state["result"] = result
             st.session_state["error"] = None
-            # Build the PDF once, up front, so download is instant.
             try:
                 st.session_state["pdf_bytes"] = report.build_pdf(
                     result.fig, result.stats, parameter=param_name, unit=p.get("unit", ""),
@@ -164,34 +177,42 @@ def page_dashboard():
     result = st.session_state.get("result")
     error = st.session_state.get("error")
 
-    # --- Plot ---
-    st.divider()
-    st.subheader("Plot")
-    if error:
-        st.error(f"Could not generate the plot: {error}")
-    elif result is None:
-        st.info("Fill in the table (or upload a file), then click **Generate plot**.")
-    else:
-        st.pyplot(result.fig, use_container_width=True)
-        dl = st.columns(2)
-        with dl[0]:
-            png = io.BytesIO()
-            result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
-            png.seek(0)
-            st.download_button("Download plot (PNG)", png, file_name="method_comparison.png",
-                               mime="image/png", use_container_width=True)
-        with dl[1]:
-            if st.session_state.get("pdf_bytes"):
-                st.download_button("Generate report (PDF)", st.session_state["pdf_bytes"],
-                                   file_name=st.session_state.get("pdf_name", "report.pdf"),
-                                   mime="application/pdf", use_container_width=True)
-            else:
-                st.caption("PDF report unavailable.")
-
-        # --- Statistics ---
-        st.divider()
+    # --- Statistics — rendered into the box beside the data table ---
+    with stats_box:
         st.subheader("Statistics")
-        _render_statistics(result.stats)
+        if error:
+            st.error("Couldn't compute — check the data and options.")
+        elif result is None:
+            st.info("Generate a plot to see the statistics.")
+        else:
+            _render_statistics(result.stats)
+
+    # --- Plot output ---
+    with plot_box:
+        if error:
+            st.error(f"Could not generate the plot: {error}")
+        elif result is None:
+            st.info("Enter data on the left, set options above, then click **Generate plot**.")
+        else:
+            st.pyplot(result.fig, use_container_width=True)
+            dl = st.columns(2)
+            with dl[0]:
+                png = io.BytesIO()
+                result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
+                png.seek(0)
+                st.download_button("Download plot (PNG)", png, file_name="method_comparison.png",
+                                   mime="image/png", use_container_width=True)
+            with dl[1]:
+                if st.session_state.get("pdf_bytes"):
+                    st.download_button("Generate report (PDF)", st.session_state["pdf_bytes"],
+                                       file_name=st.session_state.get("pdf_name", "report.pdf"),
+                                       mime="application/pdf", use_container_width=True)
+                else:
+                    st.caption("PDF report unavailable.")
+
+
+def _fmt_tol(value, tol_type):
+    return f"{value:g}%" if str(tol_type).startswith("Percentage") else f"{value:g}"
 
 
 def _render_statistics(s):
