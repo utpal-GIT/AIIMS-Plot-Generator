@@ -2,18 +2,32 @@
 
 Web app (Streamlit) that ports the desktop lab-plot tool. OLS regression only.
 
-## Features (Phase 1)
-- Editable data table **or** Excel upload (columns: `Reference`, `Measured`)
+## Layout
+Modern dashboard with sidebar navigation:
+
+- **Dashboard** — pick a test parameter, enter/upload data (with auto Sl. No.),
+  generate the plot + statistics, export a **PDF report**.
+- **Configurations** — define test parameters, each with its own saved tolerances
+  (threshold, below/above value or %). Any logged-in user can edit these.
+- **Account** — change your own password; view your role.
+- **Settings** — user management (admins/super admins only).
+- **Logout**.
+
+## Features
+- Editable data table **or** Excel upload (columns: `Reference`, `Measured`),
+  with an auto-populated **Sl. No.** column
+- Per-parameter tolerances applied automatically from Configurations
 - X-axis basis toggle: **Reference** or **Average** `(Reference + Measured)/2`
   (Average recomputes the full analysis against the average — Bland–Altman)
 - Editable plot title and X / Y axis labels
-- Configurable threshold + below/above tolerance (value or percentage)
 - OLS regression line with 95% CI, mean difference + CI, Limits of Agreement,
-  tolerance limits, and CI×tolerance intersection markers
+  tolerance limits, and a light-green **valid-region** shade
+- Four point categories: valid, outlier-in-range, within-tolerance-outside-range,
+  outlier-outside-range
 - Angle between the mean-difference line and the OLS line (data units)
 - Outlier breakdown — total / overestimated / underestimated, each shown
   **overall** and **within the clinical valid range**, in count and %
-- Download plot as PNG and results as CSV
+- Export **PDF report** (logo, parameter, tolerances, plot, statistics) and PNG
 
 ## Run locally
 ```bash

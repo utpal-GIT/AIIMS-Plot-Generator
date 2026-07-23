@@ -293,6 +293,20 @@ def set_role(config, username, new_role, actor_role=None):
     return True, f"'{username}' is now {ROLE_LABELS[new_role]}."
 
 
+def change_own_password(config, username, old_password, new_password):
+    """Let a logged-in user change their own password (verifies the old one)."""
+    users = config["credentials"]["usernames"]
+    if username not in users:
+        return False, "User not found."
+    if not stauth.Hasher.check_pw(old_password, users[username]["password"]):
+        return False, "Current password is incorrect."
+    if len(new_password or "") < MIN_PASSWORD_LEN:
+        return False, f"Password must be at least {MIN_PASSWORD_LEN} characters."
+    users[username]["password"] = stauth.Hasher.hash(new_password)
+    save_config(config)
+    return True, "Password updated."
+
+
 def delete_user(config, username, current_username, actor_role=None):
     users = config["credentials"]["usernames"]
     if username not in users:

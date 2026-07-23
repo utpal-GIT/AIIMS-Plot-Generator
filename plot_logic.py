@@ -218,8 +218,11 @@ def generate_plot(
     overall = _breakdown(df, n_total)
     valid_range = _breakdown(df_in_x, len(df_in_x))
 
-    df_valid = df_in_x[~df_in_x["is_outlier"]]
-    df_outliers_in = df_in_x[df_in_x["is_outlier"]]
+    # Four visual categories: in/out of valid range x in/out of tolerance.
+    df_valid = df_in_x[~df_in_x["is_outlier"]]              # in range + within tol
+    df_outliers_in = df_in_x[df_in_x["is_outlier"]]         # in range + outside tol
+    df_out_intol = df_out_x[~df_out_x["is_outlier"]]        # out of range + within tol
+    df_out_outlier = df_out_x[df_out_x["is_outlier"]]       # out of range + outside tol
 
     # ---- 8. Plot (modern styling) ----
     fig, ax = plt.subplots(figsize=(12, 6.5))
@@ -229,7 +232,7 @@ def generate_plot(
 
     # Valid region — light green shading behind everything.
     if np.isfinite(x_min) and np.isfinite(x_max):
-        ax.axvspan(x_min, x_max, color="#86efac", alpha=0.30, lw=0, zorder=0,
+        ax.axvspan(x_min, x_max, color="#bbf7d0", alpha=0.35, lw=0, zorder=0,
                    label="Valid region")
 
     # Zero reference line.
@@ -259,13 +262,15 @@ def generate_plot(
         ax.plot(x_above, tol_upper_above, color="#059669", lw=1.6, label=label_above, zorder=2)
         ax.plot(x_above, tol_lower_above, color="#059669", lw=1.6, zorder=2)
 
-    # Data points — white-edged markers.
+    # Data points — four categories, white-edged markers.
     ax.scatter(df_valid["X"], df_valid["Diff"], color="#16a34a", s=45, edgecolor="white",
-               linewidth=0.6, label="Valid", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Valid (in range, within tolerance)", alpha=0.95, zorder=6)
     ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#f59e0b", s=45, edgecolor="white",
-               linewidth=0.6, label="Outlier", alpha=0.95, zorder=6)
-    ax.scatter(df_out_x["X"], df_out_x["Diff"], color="#cbd5e1", s=38, edgecolor="white",
-               linewidth=0.6, label="Excluded", alpha=0.95, zorder=5)
+               linewidth=0.6, label="Outlier (in range)", alpha=0.95, zorder=6)
+    ax.scatter(df_out_intol["X"], df_out_intol["Diff"], color="#3b82f6", s=42, edgecolor="white",
+               linewidth=0.6, label="Within tolerance (outside range)", alpha=0.95, zorder=6)
+    ax.scatter(df_out_outlier["X"], df_out_outlier["Diff"], color="#dc2626", s=42, edgecolor="white",
+               linewidth=0.6, label="Outlier (outside range)", alpha=0.95, zorder=6)
 
     # Valid-range boundary markers.
     for bx in (x_min, x_max):

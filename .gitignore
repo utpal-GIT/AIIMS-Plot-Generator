@@ -1,6 +1,8 @@
 # Auth secrets — never commit
 auth_config.yaml
 .streamlit/secrets.toml
+# Local app state (used only in file/dev mode; production uses the DB)
+params_config.yaml
 
 # Python
 __pycache__/
