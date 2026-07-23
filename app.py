@@ -9,6 +9,7 @@ Auth (Phase 3) and hosting (Phase 4) are added later; this phase is the
 core port of the desktop tool to the web, OLS-only.
 """
 
+import base64
 import contextlib
 import io
 import math
@@ -25,6 +26,19 @@ st.set_page_config(page_title="Lab Plot Generator", page_icon="📊", layout="wi
 TOL_OPTIONS = ["Value Tolerance", "Percentage Tolerance"]
 DEFAULT_DATA = pd.DataFrame({"Reference": [None] * 8, "Measured": [None] * 8})
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
+
+
+@st.cache_data(show_spinner=False)
+def _logo_data_uri(path):
+    with open(path, "rb") as f:
+        return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+
+
+# Light, professional polish: a touch more breathing room at the top.
+st.markdown(
+    "<style>.block-container{padding-top:2.2rem;}</style>",
+    unsafe_allow_html=True,
+)
 
 
 # --------------------------------------------------------------------------
@@ -54,9 +68,13 @@ is_manager = auth.is_manager(current_role)
 
 with st.sidebar:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, use_container_width=True)
-    st.write(f"Signed in as **{st.session_state.get('name')}**"
-             f" · {auth.ROLE_LABELS.get(current_role, current_role)}")
+        st.markdown(
+            f"<div style='text-align:center; padding:2px 0 10px;'>"
+            f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:130px; max-width:70%;'></div>",
+            unsafe_allow_html=True,
+        )
+    st.caption(f"Signed in as **{st.session_state.get('name')}**"
+               f" · {auth.ROLE_LABELS.get(current_role, current_role)}")
     authenticator.logout("Log out", "sidebar")
     st.divider()
 
