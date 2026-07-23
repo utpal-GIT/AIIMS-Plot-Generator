@@ -12,6 +12,7 @@ core port of the desktop tool to the web, OLS-only.
 import contextlib
 import io
 import math
+import os
 
 import pandas as pd
 import streamlit as st
@@ -23,6 +24,7 @@ st.set_page_config(page_title="Lab Plot Generator", page_icon="📊", layout="wi
 
 TOL_OPTIONS = ["Value Tolerance", "Percentage Tolerance"]
 DEFAULT_DATA = pd.DataFrame({"Reference": [None] * 8, "Measured": [None] * 8})
+LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
 
 
 # --------------------------------------------------------------------------
@@ -51,6 +53,8 @@ current_role = auth.role_of(config, current_username) or auth.ROLE_USER
 is_manager = auth.is_manager(current_role)
 
 with st.sidebar:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, use_container_width=True)
     st.write(f"Signed in as **{st.session_state.get('name')}**"
              f" · {auth.ROLE_LABELS.get(current_role, current_role)}")
     authenticator.logout("Log out", "sidebar")
