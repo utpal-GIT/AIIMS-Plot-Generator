@@ -20,7 +20,7 @@ import config_store
 import report
 from plot_logic import generate_plot
 
-st.set_page_config(page_title="Method Comparison", page_icon="📊", layout="wide")
+st.set_page_config(page_title="AIIMS Plotter", page_icon="📊", layout="wide")
 
 TOL_OPTIONS = config_store.TOL_OPTIONS
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
@@ -318,12 +318,17 @@ def page_settings():
 # Sidebar navigation + routing
 # ==========================================================================
 with st.sidebar:
-    if os.path.exists(LOGO_PATH):
-        st.markdown(
-            f"<div style='text-align:center; padding:2px 0 12px;'>"
-            f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:72px; max-width:45%;'></div>",
-            unsafe_allow_html=True,
-        )
+    logo_img = (f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:34px; height:34px; "
+                f"border-radius:6px;'>") if os.path.exists(LOGO_PATH) else ""
+    st.markdown(
+        f"<div style='display:flex; align-items:center; gap:10px; padding:2px 2px 16px;'>"
+        f"{logo_img}"
+        f"<span style='font-size:19px; font-weight:600; color:#1f2937;'>AIIMS Plotter</span>"
+        f"</div>"
+        f"<div style='font-size:11px; font-weight:600; color:#94a3b8; letter-spacing:.6px; "
+        f"padding:0 2px 6px;'>MAIN MENU</div>",
+        unsafe_allow_html=True,
+    )
     selected = option_menu(
         menu_title=None,
         options=["Dashboard", "Configurations", "Account", "Settings", "Logout"],
