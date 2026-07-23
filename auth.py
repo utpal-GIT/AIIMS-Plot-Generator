@@ -341,7 +341,7 @@ def build_authenticator(config):
 # UI: first-run setup (creates the super admin / owner)
 # --------------------------------------------------------------------------
 def render_setup(config):
-    st.title("Welcome — set up the super admin account")
+    st.markdown("**Create administrator account**")
     st.caption("This one-time step creates the owner (super admin). "
                "No default password is stored.")
     with st.form("setup_form"):

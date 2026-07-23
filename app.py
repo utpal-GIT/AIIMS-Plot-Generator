@@ -56,24 +56,58 @@ def _logo_data_uri(path):
         return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
 
 
+def _auth_brand(subtitle, show_name=True):
+    logo = ""
+    if os.path.exists(LOGO_PATH):
+        logo = (f"<img src='{_logo_data_uri(LOGO_PATH)}' "
+                f"style='width:58px;height:58px;border-radius:12px;'>")
+    name = ("<div style='font-size:27px;font-weight:700;color:#0f172a;margin-top:12px;'>"
+            "AIIMS Plotter</div>") if show_name else ""
+    sub = (f"<div style='font-size:14px;color:#64748b;margin-top:6px;'>{subtitle}</div>"
+           if subtitle else "")
+    st.markdown(
+        f"<div style='text-align:center; padding:14px 0 18px;'>{logo}{name}{sub}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _hide_sidebar():
+    st.markdown(
+        "<style>section[data-testid='stSidebar']{display:none;}"
+        "[data-testid='stSidebarCollapsedControl'],[data-testid='collapsedControl']{display:none;}"
+        "</style>",
+        unsafe_allow_html=True,
+    )
+
+
 # ==========================================================================
-# Authentication gate
+# Authentication gate  (branded, centered login / setup)
 # ==========================================================================
 config = auth.load_config()
 
 if auth.needs_setup(config):
-    auth.render_setup(config)
+    _hide_sidebar()
+    cols = st.columns([1, 1, 1])
+    with cols[1]:
+        _auth_brand("Welcome — create your administrator account", show_name=True)
+        with st.container(border=True):
+            auth.render_setup(config)
     st.stop()
 
 authenticator = auth.build_authenticator(config)
-authenticator.login(location="main")
-auth_status = st.session_state.get("authentication_status")
 
-if auth_status is False:
-    st.error("Username or password is incorrect.")
-    st.stop()
-elif auth_status is None:
-    st.info("Please log in to continue.")
+if st.session_state.get("authentication_status") is not True:
+    _hide_sidebar()
+    cols = st.columns([1, 1, 1])
+    with cols[1]:
+        _auth_brand("Sign in to continue")
+        with st.container(border=True):
+            authenticator.login(location="main",
+                                fields={"Form name": "", "Login": "Sign in"})
+            if st.session_state.get("authentication_status") is False:
+                st.error("Incorrect username or password.")
+            else:
+                st.caption("Enter your credentials to access the dashboard.")
     st.stop()
 
 current_username = st.session_state.get("username")
