@@ -294,6 +294,26 @@ def generate_plot(
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
               frameon=False, fontsize=9)
 
+    # Compact summary box (below the legend, right of the axes).
+    range_txt = (f"{x_min:.2f} – {x_max:.2f}"
+                 if np.isfinite(x_min) and np.isfinite(x_max) else "None")
+    summary = (
+        f"$\\bf{{Summary}}$\n"
+        f"Analysis range:  {range_txt}\n"
+        f"Mean-diff / OLS angle:  {ols_angle_deg:.2f}°\n"
+        f"Total points:  {n_total}\n"
+        f"In valid range:  {len(df_in_x)}\n"
+        f"Outliers overall:  {overall['outliers_n']} ({overall['outliers_pct']:.1f}%)\n"
+        f"    over {overall['over_n']}, under {overall['under_n']}\n"
+        f"Outliers in range:  {valid_range['outliers_n']} ({valid_range['outliers_pct']:.1f}%)\n"
+        f"    over {valid_range['over_n']}, under {valid_range['under_n']}"
+    )
+    ax.annotate(summary, xy=(1.02, 0.60), xycoords="axes fraction",
+                fontsize=8.5, color="#334155", va="top", ha="left",
+                bbox=dict(boxstyle="round,pad=0.6", facecolor="#f8fafc",
+                          edgecolor="#e2e8f0", linewidth=1),
+                annotation_clip=False)
+
     fig.tight_layout()
 
     stats_dict = {
