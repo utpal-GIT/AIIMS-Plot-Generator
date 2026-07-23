@@ -25,7 +25,29 @@ st.set_page_config(page_title="AIIMS Plotter", page_icon="📊", layout="wide")
 TOL_OPTIONS = config_store.TOL_OPTIONS
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
 
-st.markdown("<style>.block-container{padding-top:2.2rem;}</style>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+      .block-container{padding-top:2.2rem;}
+      .sc{background:#ffffff;border:1px solid #eef0f2;border-radius:12px;padding:12px 14px;}
+      .scl{font-size:11px;font-weight:600;letter-spacing:.5px;color:#94a3b8;
+           text-transform:uppercase;margin-bottom:4px;}
+      .scv{font-size:21px;font-weight:600;color:#1f2937;line-height:1.15;}
+      .scs{font-size:12px;color:#64748b;margin-top:2px;}
+      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+      .tolwrap{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
+      .tolchip{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;
+               padding:8px 14px;min-width:96px;}
+      .tolchip .k{font-size:10.5px;color:#64748b;font-weight:600;
+                  text-transform:uppercase;letter-spacing:.4px;}
+      .tolchip .v{font-size:17px;color:#0f172a;font-weight:600;}
+      .obreak{display:flex;gap:18px;margin-top:6px;}
+      .obreak .n{font-size:19px;font-weight:600;line-height:1;}
+      .obreak .t{font-size:11px;color:#64748b;margin-top:2px;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -78,16 +100,15 @@ def page_dashboard():
     p = params[param_name]
     unit_txt = f" ({p['unit']})" if p.get("unit") else ""
     with head[1]:
-        with st.container(border=True):
-            st.markdown(f"**Tolerance settings — {param_name}{unit_txt}**")
-            tc = st.columns(3)
-            tc[0].metric("Threshold (X)", f"{p['threshold']:g}")
-            tc[1].metric("Below threshold", _fmt_tol(p["val_below"], p["type_below"]),
-                         help=p["type_below"])
-            tc[2].metric("Above threshold", _fmt_tol(p["val_above"], p["type_above"]),
-                         help=p["type_above"])
-            st.caption("Applied to |Measured − Reference|.  “%” = percent of the X value; "
-                       "otherwise an absolute difference.  Edit in **Configurations**.")
+        st.markdown(
+            f"<div class='scl' style='margin-bottom:6px;'>Tolerance · {param_name}{unit_txt}</div>"
+            f"<div class='tolwrap'>"
+            f"<div class='tolchip'><div class='k'>Threshold (X)</div><div class='v'>{p['threshold']:g}</div></div>"
+            f"<div class='tolchip'><div class='k'>Below threshold</div><div class='v'>{_fmt_tol(p['val_below'], p['type_below'])}</div></div>"
+            f"<div class='tolchip'><div class='k'>Above threshold</div><div class='v'>{_fmt_tol(p['val_above'], p['type_above'])}</div></div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 
@@ -215,33 +236,47 @@ def _fmt_tol(value, tol_type):
     return f"{value:g}%" if str(tol_type).startswith("Percentage") else f"{value:g}"
 
 
+def _stat_card(label, value):
+    return f"<div class='sc'><div class='scl'>{label}</div><div class='scv'>{value}</div></div>"
+
+
+def _outlier_card(title, subtitle, d):
+    return (
+        f"<div class='sc'>"
+        f"<div class='scl'>{title}</div>"
+        f"<div class='scs'>{subtitle}</div>"
+        f"<div class='obreak'>"
+        f"<div><div class='n' style='color:#0f172a'>{d['outliers_n']}</div>"
+        f"<div class='t'>total · {d['outliers_pct']:.1f}%</div></div>"
+        f"<div><div class='n' style='color:#ea580c'>{d['over_n']}</div>"
+        f"<div class='t'>over · {d['over_pct']:.1f}%</div></div>"
+        f"<div><div class='n' style='color:#2563eb'>{d['under_n']}</div>"
+        f"<div class='t'>under · {d['under_pct']:.1f}%</div></div>"
+        f"</div></div>"
+    )
+
+
 def _render_statistics(s):
     import math
     rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
            if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
-    with st.container(border=True):
-        m = st.columns(3)
-        m[0].metric("Valid analysis range", rng)
-        m[1].metric("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°")
-        m[2].metric("OLS slope", f"{s['slope']:.4f}")
-        m = st.columns(3)
-        m[0].metric("Mean difference", f"{s['mean_diff']:.3f}")
-        m[1].metric("Total points", s["n_total"])
-        m[2].metric("Points in valid range", s["n_in_range"])
-
+    cards = [
+        _stat_card("Analysis range", rng),
+        _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
+        _stat_card("OLS slope", f"{s['slope']:.4f}"),
+        _stat_card("Mean difference", f"{s['mean_diff']:.3f}"),
+        _stat_card("Total points", str(s["n_total"])),
+        _stat_card("In valid range", str(s["n_in_range"])),
+    ]
     ov, vr = s["overall"], s["valid_range"]
-    cols = st.columns(2)
-    for col, (label, sub, d) in zip(cols, [
-        ("Outliers — overall", "Across all data points", ov),
-        ("Outliers — valid range", "Inside the analysis range", vr),
-    ]):
-        with col, st.container(border=True):
-            st.markdown(f"**{label}**")
-            st.caption(sub)
-            t = st.columns(3)
-            t[0].metric("Total", d["outliers_n"], f"{d['outliers_pct']:.1f}%", delta_color="off")
-            t[1].metric("Over", d["over_n"], f"{d['over_pct']:.1f}%", delta_color="off")
-            t[2].metric("Under", d["under_n"], f"{d['under_pct']:.1f}%", delta_color="off")
+    st.markdown(
+        "<div class='grid2'>" + "".join(cards) + "</div>"
+        "<div class='grid2' style='margin-top:10px;'>"
+        + _outlier_card("Outliers — overall", "Across all data points", ov)
+        + _outlier_card("Outliers — valid range", "Inside the analysis range", vr)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def page_configurations():

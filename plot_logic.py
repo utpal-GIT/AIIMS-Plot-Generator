@@ -294,24 +294,26 @@ def generate_plot(
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
               frameon=False, fontsize=9)
 
-    # Compact summary box (below the legend, right of the axes).
-    range_txt = (f"{x_min:.2f} – {x_max:.2f}"
-                 if np.isfinite(x_min) and np.isfinite(x_max) else "None")
-    summary = (
-        f"$\\bf{{Summary}}$\n"
-        f"Analysis range:  {range_txt}\n"
-        f"Mean-diff / OLS angle:  {ols_angle_deg:.2f}°\n"
-        f"Total points:  {n_total}\n"
-        f"In valid range:  {len(df_in_x)}\n"
-        f"Outliers overall:  {overall['outliers_n']} ({overall['outliers_pct']:.1f}%)\n"
-        f"    over {overall['over_n']}, under {overall['under_n']}\n"
-        f"Outliers in range:  {valid_range['outliers_n']} ({valid_range['outliers_pct']:.1f}%)\n"
-        f"    over {valid_range['over_n']}, under {valid_range['under_n']}"
+    # Summary box (previous style) — below the legend, right of the axes.
+    min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
+    max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
+    info_text = (
+        f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°\n\n"
+        f"Analysis range:\n"
+        f"   • Min X: {min_text}\n"
+        f"   • Max X: {max_text}\n\n"
+        f"Total data points: {n_total}\n"
+        f"Points in valid range: {len(df_in_x)}\n\n"
+        f"Outliers (overall): {overall['outliers_n']} ({overall['outliers_pct']:.1f}%)\n"
+        f"   • Over: {overall['over_n']} ({overall['over_pct']:.1f}%)\n"
+        f"   • Under: {overall['under_n']} ({overall['under_pct']:.1f}%)\n"
+        f"Outliers (valid range): {valid_range['outliers_n']} ({valid_range['outliers_pct']:.1f}%)\n"
+        f"   • Over: {valid_range['over_n']} ({valid_range['over_pct']:.1f}%)\n"
+        f"   • Under: {valid_range['under_n']} ({valid_range['under_pct']:.1f}%)"
     )
-    ax.annotate(summary, xy=(1.02, 0.60), xycoords="axes fraction",
-                fontsize=8.5, color="#334155", va="top", ha="left",
-                bbox=dict(boxstyle="round,pad=0.6", facecolor="#f8fafc",
-                          edgecolor="#e2e8f0", linewidth=1),
+    ax.annotate(info_text, xy=(1.02, 0.58), xycoords="axes fraction",
+                fontsize=10, color="#b35f00", weight="bold", va="top", ha="left",
+                bbox=dict(facecolor="white", alpha=0.85, edgecolor="lightgray", pad=6),
                 annotation_clip=False)
 
     fig.tight_layout()
