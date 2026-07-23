@@ -204,15 +204,17 @@ def generate_plot(
         out = sub[sub["is_outlier"]]
         over = out[out["Diff"] > 0]
         under = out[out["Diff"] < 0]
-        pct = lambda k: (k / denom * 100.0) if denom > 0 else 0.0
+        n_out = len(out)
         return {
             "n_points": len(sub),
-            "outliers_n": len(out),
-            "outliers_pct": pct(len(out)),
+            "outliers_n": n_out,
+            # Outliers as a percentage of all points in this scope.
+            "outliers_pct": (n_out / denom * 100.0) if denom > 0 else 0.0,
+            # Over / under as a percentage of the outliers (they sum to ~100%).
             "over_n": len(over),
-            "over_pct": pct(len(over)),
+            "over_pct": (len(over) / n_out * 100.0) if n_out > 0 else 0.0,
             "under_n": len(under),
-            "under_pct": pct(len(under)),
+            "under_pct": (len(under) / n_out * 100.0) if n_out > 0 else 0.0,
         }
 
     overall = _breakdown(df, n_total)
@@ -232,7 +234,7 @@ def generate_plot(
 
     # Valid region — light green shading behind everything.
     if np.isfinite(x_min) and np.isfinite(x_max):
-        ax.axvspan(x_min, x_max, color="#bbf7d0", alpha=0.35, lw=0, zorder=0,
+        ax.axvspan(x_min, x_max, color="#bbf7d0", alpha=0.18, lw=0, zorder=0,
                    label="Valid region")
 
     # Zero reference line.
@@ -280,12 +282,13 @@ def generate_plot(
                     rotation=90, va="bottom", ha="right", color="#15803d",
                     fontsize=8.5, fontweight="semibold", zorder=7)
 
-    # Modern spines / grid / ticks.
+    # Seaborn "whitegrid" look: light grid on both axes, faint spines.
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     for side in ("left", "bottom"):
-        ax.spines[side].set_color("#d0d0d0")
-    ax.grid(axis="y", color="#eef0f2", lw=1.0)
+        ax.spines[side].set_color("#c7ccd1")
+    ax.set_facecolor("#ffffff")
+    ax.grid(True, color="#e9ecef", lw=0.8)
     ax.tick_params(colors="#666666", labelsize=10, length=0)
 
     ax.set_title(title, fontsize=15, fontweight="semibold", color="#1f2937", loc="left", pad=12)
@@ -333,6 +336,12 @@ def generate_plot(
         "x_max": x_max,
         "n_total": n_total,
         "n_in_range": len(df_in_x),
+        "categories": {
+            "valid": int(len(df_valid)),
+            "outlier_in_range": int(len(df_outliers_in)),
+            "within_tol_outside": int(len(df_out_intol)),
+            "outlier_outside": int(len(df_out_outlier)),
+        },
         "overall": overall,
         "valid_range": valid_range,
         "x_basis": x_basis,

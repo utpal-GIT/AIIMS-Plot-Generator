@@ -256,6 +256,22 @@ def _outlier_card(title, subtitle, d):
     )
 
 
+# Point-category colors — identical to the plot markers.
+CAT_COLORS = [
+    ("Valid", "valid", "#16a34a"),
+    ("Outlier · in range", "outlier_in_range", "#f59e0b"),
+    ("Within tol · outside range", "within_tol_outside", "#3b82f6"),
+    ("Outlier · outside range", "outlier_outside", "#dc2626"),
+]
+
+
+def _cat_chip(label, count, color):
+    dot = (f"<span style='display:inline-block;width:9px;height:9px;border-radius:50%;"
+           f"background:{color};margin-right:6px;'></span>")
+    return (f"<div class='tolchip'><div class='k'>{dot}{label}</div>"
+            f"<div class='v' style='color:{color}'>{count}</div></div>")
+
+
 def _render_statistics(s):
     import math
     rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
@@ -268,10 +284,14 @@ def _render_statistics(s):
         _stat_card("Total points", str(s["n_total"])),
         _stat_card("In valid range", str(s["n_in_range"])),
     ]
+    cats = s.get("categories", {})
+    chips = "".join(_cat_chip(lbl, cats.get(key, 0), col) for lbl, key, col in CAT_COLORS)
     ov, vr = s["overall"], s["valid_range"]
     st.markdown(
         "<div class='grid2'>" + "".join(cards) + "</div>"
-        "<div class='grid2' style='margin-top:10px;'>"
+        "<div class='scl' style='margin:12px 0 6px;'>Point categories</div>"
+        "<div class='tolwrap'>" + chips + "</div>"
+        "<div class='grid2' style='margin-top:12px;'>"
         + _outlier_card("Outliers — overall", "Across all data points", ov)
         + _outlier_card("Outliers — valid range", "Inside the analysis range", vr)
         + "</div>",
