@@ -1,0 +1,10 @@
+auth_config.yaml
+__pycache__/
+*.pyc
+.venv/
+venv/
+streamlit.log
+*.png
+.git/
+.gitignore
+DEPLOY.md

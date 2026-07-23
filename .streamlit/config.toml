@@ -1,0 +1,11 @@
+[server]
+headless = true
+# XSRF protection stays on (default). Do not disable CORS unless a specific
+# proxy setup requires it.
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"

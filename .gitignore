@@ -1,0 +1,14 @@
+# Auth secrets — never commit
+auth_config.yaml
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Runtime / logs
+streamlit.log
+*.png
+!assets/*.png

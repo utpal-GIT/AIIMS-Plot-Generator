@@ -1,0 +1,18 @@
+# Render Blueprint — deploy with one click from a connected Git repo.
+# A persistent disk is REQUIRED so runtime-created user accounts survive
+# restarts/redeploys. Render disks need a paid instance type (Starter+).
+services:
+  - type: web
+    name: lab-plot-generator
+    runtime: docker
+    plan: starter
+    region: singapore          # closest Render region to India; change if preferred
+    healthCheckPath: /_stcore/health
+    autoDeploy: true
+    disk:
+      name: auth-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: AUTH_CONFIG_PATH
+        value: /data/auth_config.yaml
