@@ -321,7 +321,7 @@ with st.sidebar:
     if os.path.exists(LOGO_PATH):
         st.markdown(
             f"<div style='text-align:center; padding:2px 0 12px;'>"
-            f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:120px; max-width:65%;'></div>",
+            f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:72px; max-width:45%;'></div>",
             unsafe_allow_html=True,
         )
     selected = option_menu(
