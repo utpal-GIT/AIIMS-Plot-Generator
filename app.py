@@ -78,7 +78,7 @@ st.markdown(
       .rchip b{color:#0f172a;font-weight:600;}
       .rchip .ar{color:#cbd5e1;}
       .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
-      .dash-sub{font-size:14px;color:#64748b;margin-top:4px;}
+      .dash-sub{font-size:14px;color:#64748b;margin:4px 0 0;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -173,6 +173,8 @@ def page_dashboard():
             icon=":material/description:", use_container_width=True,
             help=None if pdf else "Generate a plot first",
         )
+
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
     if not params:
         st.warning("No test parameters configured yet. Add one in **Configurations** "
