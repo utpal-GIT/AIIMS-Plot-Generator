@@ -11,6 +11,7 @@ import base64
 import io
 import os
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -24,6 +25,12 @@ st.set_page_config(page_title="AIIMS Plotter", page_icon="📊", layout="wide")
 
 TOL_OPTIONS = config_store.TOL_OPTIONS
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
+
+
+def _blank_data(n=8):
+    # float64 columns (not object) so pasted/typed values keep full precision.
+    return pd.DataFrame({"Reference": pd.Series([np.nan] * n, dtype="float64"),
+                         "Measured": pd.Series([np.nan] * n, dtype="float64")})
 
 st.markdown(
     """
@@ -174,7 +181,7 @@ def page_dashboard():
         mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
 
         if "data_df" not in st.session_state:
-            st.session_state["data_df"] = pd.DataFrame({"Reference": [None] * 8, "Measured": [None] * 8})
+            st.session_state["data_df"] = _blank_data()
 
         if mode == "Upload Excel":
             up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
@@ -184,7 +191,7 @@ def page_dashboard():
                     udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
                     for col in ["Reference", "Measured"]:
                         if col not in udf.columns:
-                            udf[col] = None
+                            udf[col] = np.nan
                     st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
                     st.success(f"Loaded {len(st.session_state['data_df'])} rows.")
                 except Exception as e:
@@ -193,7 +200,7 @@ def page_dashboard():
         base = st.session_state["data_df"].copy()
         for col in ["Reference", "Measured"]:
             if col not in base.columns:
-                base[col] = None
+                base[col] = np.nan
         base = base[["Reference", "Measured"]].reset_index(drop=True)
         base.insert(0, "Sl. No", range(1, len(base) + 1))
 
@@ -205,8 +212,22 @@ def page_dashboard():
                 "Measured": st.column_config.NumberColumn("Measured", help="Value from the method under test"),
             },
         )
-        st.session_state["data_df"] = edited.drop(columns=["Sl. No"]).reset_index(drop=True)
-        edited_df = st.session_state["data_df"]
+        # Store full-precision numeric values (no dtype ambiguity from pasting).
+        store = edited.drop(columns=["Sl. No"]).reset_index(drop=True)
+        for col in ["Reference", "Measured"]:
+            store[col] = pd.to_numeric(store[col], errors="coerce")
+        st.session_state["data_df"] = store
+        edited_df = store
+
+        # Data fingerprint — compare this between upload and paste to confirm
+        # the table holds exactly the same numbers as your file.
+        vd = edited_df.dropna(subset=["Reference", "Measured"])
+        if len(vd):
+            st.caption(
+                f"**{len(vd)} complete rows** · Reference mean {vd['Reference'].mean():.4f} "
+                f"(min {vd['Reference'].min():.3f}, max {vd['Reference'].max():.3f}) · "
+                f"Measured mean {vd['Measured'].mean():.4f}"
+            )
 
     stats_box = stats_col.container()  # filled after compute so it sits beside the table
 
