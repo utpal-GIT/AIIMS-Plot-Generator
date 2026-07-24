@@ -27,7 +27,7 @@ TOL_OPTIONS = config_store.TOL_OPTIONS
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
 
 
-def _blank_data(n=8):
+def _blank_data(n=6):
     # float64 columns (not object) so pasted/typed values keep full precision.
     return pd.DataFrame({"Reference": pd.Series([np.nan] * n, dtype="float64"),
                          "Measured": pd.Series([np.nan] * n, dtype="float64")})
@@ -35,24 +35,32 @@ def _blank_data(n=8):
 st.markdown(
     """
     <style>
-      .block-container{padding-top:2.2rem;}
-      .sc{background:#ffffff;border:1px solid #eef0f2;border-radius:12px;padding:12px 14px;}
+      /* Compact dashboard: tighter page padding, gaps, dividers and headings */
+      .block-container{padding-top:1.3rem;padding-bottom:1rem;max-width:1500px;}
+      [data-testid="stVerticalBlock"]{gap:0.5rem;}
+      [data-testid="stHeading"]{margin-bottom:0.15rem;}
+      h1{font-size:1.7rem !important;margin-bottom:0.2rem !important;}
+      h2{font-size:1.25rem !important;margin:0.1rem 0 0.2rem !important;}
+      h3{font-size:1.05rem !important;margin:0.1rem 0 0.2rem !important;}
+      hr{margin:0.45rem 0 !important;}
+      [data-testid="stExpander"]{margin-top:0.1rem;}
+      .sc{background:#ffffff;border:1px solid #eef0f2;border-radius:10px;padding:9px 12px;}
       .scl{font-size:11px;font-weight:600;letter-spacing:.5px;color:#94a3b8;
-           text-transform:uppercase;margin-bottom:4px;}
-      .scv{font-size:21px;font-weight:600;color:#1f2937;line-height:1.15;}
+           text-transform:uppercase;margin-bottom:3px;}
+      .scv{font-size:19px;font-weight:600;color:#1f2937;line-height:1.15;}
       .scs{font-size:12px;color:#64748b;margin-top:2px;}
-      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-      .tolwrap{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
+      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      .tolwrap{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;}
       .tolchip{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;
-               padding:8px 14px;min-width:96px;}
+               padding:7px 12px;min-width:92px;}
       .tolchip .k{font-size:10.5px;color:#64748b;font-weight:600;
                   text-transform:uppercase;letter-spacing:.4px;}
-      .tolchip .v{font-size:17px;color:#0f172a;font-weight:600;}
+      .tolchip .v{font-size:16px;color:#0f172a;font-weight:600;}
       .obreak{display:flex;gap:18px;margin-top:6px;}
       .obreak .n{font-size:19px;font-weight:600;line-height:1;}
       .obreak .t{font-size:11px;color:#64748b;margin-top:2px;}
-      .tcard{border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;background:#fff;}
-      .tcard .head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+      .tcard{border:1px solid #e2e8f0;border-radius:10px;padding:9px 14px;background:#fff;}
+      .tcard .head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
       .tcard .pname{font-size:16px;font-weight:600;color:#0f172a;}
       .tcard .punit{font-size:12px;color:#475569;background:#f1f5f9;border-radius:6px;padding:2px 8px;}
       .tcard .tlabel{font-size:11px;font-weight:600;letter-spacing:.5px;color:#94a3b8;
@@ -343,7 +351,7 @@ def _summary_row(label, value, color="#0f172a", indent=False):
             if indent else "")
     return (
         "<div style='display:flex;justify-content:space-between;align-items:baseline;"
-        "padding:7px 0;border-bottom:1px solid #f1f5f9;'>"
+        "padding:4px 0;border-bottom:1px solid #f1f5f9;'>"
         f"<span style='color:#475569;font-size:13px;'>{lead}{label}</span>"
         f"<span style='color:{color};font-size:14px;font-weight:600;'>{value}</span></div>"
     )
