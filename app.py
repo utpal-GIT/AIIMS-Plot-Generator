@@ -44,6 +44,19 @@ st.markdown(
       .obreak{display:flex;gap:18px;margin-top:6px;}
       .obreak .n{font-size:19px;font-weight:600;line-height:1;}
       .obreak .t{font-size:11px;color:#64748b;margin-top:2px;}
+      .tcard{border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;background:#fff;}
+      .tcard .head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+      .tcard .pname{font-size:16px;font-weight:600;color:#0f172a;}
+      .tcard .punit{font-size:12px;color:#475569;background:#f1f5f9;border-radius:6px;padding:2px 8px;}
+      .tcard .tlabel{font-size:11px;font-weight:600;letter-spacing:.5px;color:#94a3b8;
+                     text-transform:uppercase;margin-left:auto;}
+      .tcard .rules{display:flex;gap:10px;flex-wrap:wrap;}
+      .tcard .rule{display:flex;align-items:center;gap:8px;background:#f8fafc;
+                   border:1px solid #eef0f2;border-radius:8px;padding:7px 12px;}
+      .tcard .cond{font-size:12.5px;color:#475569;font-weight:600;}
+      .tcard .arrow{color:#cbd5e1;}
+      .tcard .tval{font-size:15px;font-weight:600;color:#0f172a;}
+      .tcard .note{font-size:11px;color:#94a3b8;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -132,15 +145,23 @@ def page_dashboard():
     with head[0]:
         param_name = st.selectbox("Test parameter", list(params.keys()))
     p = params[param_name]
-    unit_txt = f" ({p['unit']})" if p.get("unit") else ""
     with head[1]:
+        b_val, b_note = _tol_desc(p["val_below"], p["type_below"])
+        a_val, a_note = _tol_desc(p["val_above"], p["type_above"])
+        unit_pill = f"<span class='punit'>{p['unit']}</span>" if p.get("unit") else ""
+        thr = f"{p['threshold']:g}"
         st.markdown(
-            f"<div class='scl' style='margin-bottom:6px;'>Tolerance · {param_name}{unit_txt}</div>"
-            f"<div class='tolwrap'>"
-            f"<div class='tolchip'><div class='k'>Threshold (X)</div><div class='v'>{p['threshold']:g}</div></div>"
-            f"<div class='tolchip'><div class='k'>Below threshold</div><div class='v'>{_fmt_tol(p['val_below'], p['type_below'])}</div></div>"
-            f"<div class='tolchip'><div class='k'>Above threshold</div><div class='v'>{_fmt_tol(p['val_above'], p['type_above'])}</div></div>"
-            f"</div>",
+            "<div class='tcard'>"
+            f"<div class='head'><span class='pname'>{param_name}</span>{unit_pill}"
+            "<span class='tlabel'>Tolerance limits</span></div>"
+            "<div class='rules'>"
+            f"<div class='rule'><span class='cond'>X ≤ {thr}</span>"
+            f"<span class='arrow'>→</span><span class='tval'>{b_val}</span>"
+            f"<span class='note'>{b_note}</span></div>"
+            f"<div class='rule'><span class='cond'>X &gt; {thr}</span>"
+            f"<span class='arrow'>→</span><span class='tval'>{a_val}</span>"
+            f"<span class='note'>{a_note}</span></div>"
+            "</div></div>",
             unsafe_allow_html=True,
         )
 
@@ -266,8 +287,11 @@ def page_dashboard():
                     st.caption("PDF report unavailable.")
 
 
-def _fmt_tol(value, tol_type):
-    return f"{value:g}%" if str(tol_type).startswith("Percentage") else f"{value:g}"
+def _tol_desc(value, tol_type):
+    """Return (value_text, note) describing a tolerance limit."""
+    if str(tol_type).startswith("Percentage"):
+        return f"± {value:g}%", "of value"
+    return f"± {value:g}", "absolute"
 
 
 def _stat_card(label, value):
