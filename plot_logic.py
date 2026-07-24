@@ -302,13 +302,13 @@ def generate_plot(
     min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
     max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
     ov, vr = overall, valid_range
-    # Colors are the EXACT data-point marker colors used on the plot.
-    C_HEAD = "#1f2937"     # headings / general (neutral)
-    C_TOTAL = "#334155"    # all points (neutral)
-    C_VALID = "#16a34a"    # valid marker (green)
-    C_OUT = "#f59e0b"      # outlier marker (amber)
-    C_OVER = "#dc2626"     # red marker  -> overestimated (above)
-    C_UNDER = "#3b82f6"    # blue marker -> underestimated (below)
+    # Overall outliers span two marker colors (amber in-range + red outside), so
+    # they are not one distinct colour -> the whole OVERALL block stays neutral.
+    # In the valid range, outliers are all the same marker colour (amber
+    # "Outlier in range"), so those lines take that amber.
+    C_HEAD = "#1f2937"     # headings
+    C_NEUTRAL = "#334155"  # neutral body text
+    C_AMBER = "#f59e0b"    # amber = "Outlier (in range)" marker
     C_MUTE = "#94a3b8"
 
     lines = [
@@ -316,16 +316,16 @@ def generate_plot(
         (f"Analysis range: {min_text} – {max_text}", C_HEAD),
         ("", None),
         ("OVERALL SUMMARY", C_HEAD),
-        (f"Total data points: {n_total}", C_TOTAL),
-        (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_OUT),
-        (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_OVER),
-        (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_UNDER),
+        (f"Total data points: {n_total}", C_NEUTRAL),
+        (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_NEUTRAL),
+        (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_NEUTRAL),
+        (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD),
-        (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_VALID),
-        (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_OUT),
-        (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_OVER),
-        (f"     • Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)", C_UNDER),
+        (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
+        (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
+        (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_AMBER),
+        (f"     • Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)", C_AMBER),
         ("", None),
         ("(all % are of total data points)", C_MUTE),
     ]

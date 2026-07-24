@@ -346,15 +346,15 @@ def _render_statistics(s):
 
     overall_rows = [
         ("Total data points", str(s["n_total"])),
-        ("Outliers", f"{ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", "#f59e0b"),
-        ("Overestimated", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#dc2626", True),
-        ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#3b82f6", True),
+        ("Outliers", f"{ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", "#334155"),
+        ("Overestimated", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#334155", True),
+        ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#334155", True),
     ]
     valid_rows = [
-        ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)", "#16a34a"),
+        ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)", "#334155"),
         ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#f59e0b"),
-        ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#dc2626", True),
-        ("Underestimated", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#3b82f6", True),
+        ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#f59e0b", True),
+        ("Underestimated", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#f59e0b", True),
     ]
 
     cats = s.get("categories", {})
