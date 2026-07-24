@@ -334,7 +334,8 @@ def generate_plot(
         if text == "":
             children.append(TextArea(" ", textprops=dict(fontsize=4)))
         else:
-            children.append(TextArea(text, textprops=dict(color=color, fontsize=9.5, weight="bold")))
+            # Match the legend: same font family, size 8.5, regular weight.
+            children.append(TextArea(text, textprops=dict(color=color, fontsize=8.5, weight="normal")))
     box = VPacker(children=children, align="left", pad=2, sep=2.5)
     # Anchored lower than the legend so there is a clear gap between the two.
     anchored = AnchoredOffsetbox(loc="upper left", child=box, pad=0.5, borderpad=0,
