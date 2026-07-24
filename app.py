@@ -74,7 +74,8 @@ st.markdown(
       .tcard .note{font-size:11px;color:#94a3b8;}
       .rchip{display:inline-flex;align-items:center;gap:7px;background:#f1f5f9;
              border:1px solid #e2e8f0;border-radius:8px;padding:7px 13px;
-             font-size:13px;color:#475569;font-weight:500;}
+             font-size:13px;color:#475569;font-weight:500;
+             font-family:ui-monospace,"SFMono-Regular","Cascadia Code","Courier New",monospace;}
       .rchip b{color:#0f172a;font-weight:600;}
       .rchip .ar{color:#cbd5e1;}
       .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
@@ -82,8 +83,8 @@ st.markdown(
       /* Force inner padding on the control bar so labels clear the border
          (robust across Streamlit versions via the stable st-key class) */
       .st-key-ctrlbar{padding:16px 18px !important;}
-      /* Vertical divider between Test parameter and Tolerance limits */
-      .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(2){
+      /* Vertical dividers: between parameter|tolerance and tolerance|generate */
+      .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(n+2){
         border-left:1px solid #e5e7eb; padding-left:1.4rem; margin-left:0.4rem;}
       /* White dropdown to match the control-bar design */
       .st-key-ctrlbar [data-baseweb="select"] > div{
