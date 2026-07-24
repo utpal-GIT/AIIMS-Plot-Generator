@@ -85,6 +85,9 @@ st.markdown(
       /* Vertical divider between Test parameter and Tolerance limits */
       .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(2){
         border-left:1px solid #e5e7eb; padding-left:1.4rem; margin-left:0.4rem;}
+      /* White dropdown to match the control-bar design */
+      .st-key-ctrlbar [data-baseweb="select"] > div{
+        background-color:#ffffff !important; border:1px solid #d1d5db !important;}
     </style>
     """,
     unsafe_allow_html=True,
