@@ -79,8 +79,9 @@ st.markdown(
       .rchip .ar{color:#cbd5e1;}
       .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
       .dash-sub{font-size:14px;color:#64748b;margin:4px 0 0;}
-      /* Ensure bordered containers keep inner padding so content clears the border */
-      [data-testid="stVerticalBlockBorderWrapper"] > div{padding:0.85rem 1.05rem;}
+      /* Force inner padding on the control bar so labels clear the border
+         (robust across Streamlit versions via the stable st-key class) */
+      .st-key-ctrlbar{padding:16px 18px !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -184,7 +185,7 @@ def page_dashboard():
         return
 
     # ---- Control bar: parameter · tolerance · generate ----
-    with st.container(border=True):
+    with st.container(border=True, key="ctrlbar"):
         cc = st.columns([2.4, 3.4, 1.8], vertical_alignment="center")
         with cc[0]:
             st.markdown("<div class='scl'>Test parameter</div>", unsafe_allow_html=True)
