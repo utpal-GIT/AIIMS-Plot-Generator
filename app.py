@@ -192,17 +192,18 @@ def page_dashboard():
         return
 
     # ---- Control bar: parameter · tolerance · generate ----
+    lbl = "<div class='scl' style='margin-bottom:8px'>{}</div>"
     with st.container(border=True, key="ctrlbar"):
-        cc = st.columns([2.4, 3.4, 1.8], vertical_alignment="center")
+        cc = st.columns([2.4, 3.4, 1.8], vertical_alignment="top")
         with cc[0]:
-            st.markdown("<div class='scl'>Test parameter</div>", unsafe_allow_html=True)
+            st.markdown(lbl.format("Test parameter"), unsafe_allow_html=True)
             param_name = st.selectbox(
                 "Test parameter", list(params.keys()), label_visibility="collapsed",
                 format_func=lambda k: k + (f" ({params[k]['unit']})" if params[k].get("unit") else ""),
             )
         p = params[param_name]
         with cc[1]:
-            st.markdown("<div class='scl'>Tolerance limits</div>", unsafe_allow_html=True)
+            st.markdown(lbl.format("Tolerance limits"), unsafe_allow_html=True)
             b_val, _ = _tol_desc(p["val_below"], p["type_below"])
             a_val, _ = _tol_desc(p["val_above"], p["type_above"])
             thr = f"{p['threshold']:g}"
@@ -214,6 +215,9 @@ def page_dashboard():
                 unsafe_allow_html=True,
             )
         with cc[2]:
+            # invisible label so the button lines up with the boxes above
+            st.markdown("<div class='scl' style='margin-bottom:8px;visibility:hidden'>&nbsp;</div>",
+                        unsafe_allow_html=True)
             generate = st.button("Generate plot", type="primary",
                                  icon=":material/play_arrow:", use_container_width=True)
 
