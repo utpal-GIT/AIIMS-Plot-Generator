@@ -307,11 +307,14 @@ CAT_COLORS = [
 ]
 
 
-def _cat_chip(label, count, color):
+def _cat_card(label, count, pct, color):
     dot = (f"<span style='display:inline-block;width:9px;height:9px;border-radius:50%;"
            f"background:{color};margin-right:6px;'></span>")
-    return (f"<div class='tolchip'><div class='k'>{dot}{label}</div>"
-            f"<div class='v' style='color:{color}'>{count}</div></div>")
+    return (f"<div class='sc'>"
+            f"<div class='scl' style='margin-bottom:4px;'>{dot}{label}</div>"
+            f"<div class='scv' style='color:{color}'>{count}"
+            f"<span style='font-size:13px;color:#64748b;font-weight:500;'> · {pct:.1f}%</span>"
+            f"</div></div>")
 
 
 def _summary_row(label, value, color="#0f172a", indent=False):
@@ -357,8 +360,12 @@ def _render_statistics(s):
         ("Underestimated", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#f59e0b", True),
     ]
 
+    n = s["n_total"] or 1
     cats = s.get("categories", {})
-    chips = "".join(_cat_chip(lbl, cats.get(key, 0), col) for lbl, key, col in CAT_COLORS)
+    cat_cards = "".join(
+        _cat_card(lbl, cats.get(key, 0), cats.get(key, 0) / n * 100, col)
+        for lbl, key, col in CAT_COLORS
+    )
 
     st.markdown(
         "<div class='grid2'>" + "".join(metrics) + "</div>"
@@ -367,7 +374,7 @@ def _render_statistics(s):
         + _summary_card("Valid range summary", valid_rows)
         + "</div>"
         "<div class='scl' style='margin:14px 0 6px;'>Point categories</div>"
-        "<div class='tolwrap'>" + chips + "</div>"
+        "<div class='grid2'>" + cat_cards + "</div>"
         "<div class='scs' style='margin-top:8px;'>All percentages are out of the "
         "total data points in the plot.</div>",
         unsafe_allow_html=True,
