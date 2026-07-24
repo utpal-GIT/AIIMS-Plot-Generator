@@ -72,6 +72,13 @@ st.markdown(
       .tcard .arrow{color:#cbd5e1;}
       .tcard .tval{font-size:15px;font-weight:600;color:#0f172a;}
       .tcard .note{font-size:11px;color:#94a3b8;}
+      .rchip{display:inline-flex;align-items:center;gap:7px;background:#f1f5f9;
+             border:1px solid #e2e8f0;border-radius:8px;padding:7px 13px;
+             font-size:13px;color:#475569;font-weight:500;}
+      .rchip b{color:#0f172a;font-weight:600;}
+      .rchip .ar{color:#cbd5e1;}
+      .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
+      .dash-sub{font-size:14px;color:#64748b;margin-top:4px;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -147,38 +154,56 @@ is_manager = auth.is_manager(current_role)
 # Pages
 # ==========================================================================
 def page_dashboard():
-    st.header("Dashboard")
     params = config_store.load_params()
+
+    # ---- Header: title + subtitle (left), Export report (right) ----
+    hc = st.columns([5, 1.4], vertical_alignment="center")
+    with hc[0]:
+        st.markdown(
+            "<div class='dash-title'>Dashboard</div>"
+            "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
+            unsafe_allow_html=True,
+        )
+    with hc[1]:
+        pdf = st.session_state.get("pdf_bytes")
+        st.download_button(
+            "Export report", data=pdf if pdf else b"",
+            file_name=st.session_state.get("pdf_name", "report.pdf"),
+            mime="application/pdf", disabled=pdf is None,
+            icon=":material/description:", use_container_width=True,
+            help=None if pdf else "Generate a plot first",
+        )
 
     if not params:
         st.warning("No test parameters configured yet. Add one in **Configurations** "
                    "to set its tolerance limits, then return here to plot.")
         return
 
-    # --- Test parameter + improved tolerance display ---
-    head = st.columns([1, 2])
-    with head[0]:
-        param_name = st.selectbox("Test parameter", list(params.keys()))
-    p = params[param_name]
-    with head[1]:
-        b_val, b_note = _tol_desc(p["val_below"], p["type_below"])
-        a_val, a_note = _tol_desc(p["val_above"], p["type_above"])
-        unit_pill = f"<span class='punit'>{p['unit']}</span>" if p.get("unit") else ""
-        thr = f"{p['threshold']:g}"
-        st.markdown(
-            "<div class='tcard'>"
-            f"<div class='head'><span class='pname'>{param_name}</span>{unit_pill}"
-            "<span class='tlabel'>Tolerance limits</span></div>"
-            "<div class='rules'>"
-            f"<div class='rule'><span class='cond'>X ≤ {thr}</span>"
-            f"<span class='arrow'>→</span><span class='tval'>{b_val}</span>"
-            f"<span class='note'>{b_note}</span></div>"
-            f"<div class='rule'><span class='cond'>X &gt; {thr}</span>"
-            f"<span class='arrow'>→</span><span class='tval'>{a_val}</span>"
-            f"<span class='note'>{a_note}</span></div>"
-            "</div></div>",
-            unsafe_allow_html=True,
-        )
+    # ---- Control bar: parameter · tolerance · generate ----
+    with st.container(border=True):
+        cc = st.columns([2.4, 3.4, 1.8], vertical_alignment="center")
+        with cc[0]:
+            st.markdown("<div class='scl'>Test parameter</div>", unsafe_allow_html=True)
+            param_name = st.selectbox(
+                "Test parameter", list(params.keys()), label_visibility="collapsed",
+                format_func=lambda k: k + (f" ({params[k]['unit']})" if params[k].get("unit") else ""),
+            )
+        p = params[param_name]
+        with cc[1]:
+            st.markdown("<div class='scl'>Tolerance limits</div>", unsafe_allow_html=True)
+            b_val, _ = _tol_desc(p["val_below"], p["type_below"])
+            a_val, _ = _tol_desc(p["val_above"], p["type_above"])
+            thr = f"{p['threshold']:g}"
+            st.markdown(
+                "<div style='display:flex;gap:8px;flex-wrap:wrap;'>"
+                f"<span class='rchip'>X ≤ {thr} <span class='ar'>→</span> <b>{b_val}</b></span>"
+                f"<span class='rchip'>X &gt; {thr} <span class='ar'>→</span> <b>{a_val}</b></span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        with cc[2]:
+            generate = st.button("Generate plot", type="primary",
+                                 icon=":material/play_arrow:", use_container_width=True)
 
     st.divider()
 
@@ -241,18 +266,16 @@ def page_dashboard():
 
     st.divider()
 
-    # --- Plot: customizations at the top, then the plot ---
+    # --- Plot: options (collapsible), then the plot ---
     st.subheader("Plot")
-    with st.container(border=True):
-        st.markdown("**Plot customization**")
-        cc = st.columns([1, 1.3, 1.3, 1.3])
-        x_basis = cc[0].selectbox("X-axis basis", ["Reference", "Average"],
+    with st.expander("Plot options — axis basis, title, labels"):
+        oc = st.columns([1, 1.3, 1.3, 1.3])
+        x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
                                   help="Average = (Reference + Measured) / 2 (Bland–Altman).")
         default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
-        title = cc[1].text_input("Plot title", value=param_name)
-        x_label = cc[2].text_input("X-axis label", value=default_x)
-        y_label = cc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
-        generate = st.button("Generate plot", type="primary")
+        title = oc[1].text_input("Plot title", value=param_name)
+        x_label = oc[2].text_input("X-axis label", value=default_x)
+        y_label = oc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
 
     plot_box = st.container()
 
@@ -278,6 +301,7 @@ def page_dashboard():
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
+        st.rerun()  # refresh so the header "Export report" button picks up the new PDF
 
     result = st.session_state.get("result")
     error = st.session_state.get("error")
@@ -297,23 +321,14 @@ def page_dashboard():
         if error:
             st.error(f"Could not generate the plot: {error}")
         elif result is None:
-            st.info("Enter data on the left, set options above, then click **Generate plot**.")
+            st.info("Enter data, then click **Generate plot** at the top.")
         else:
             st.pyplot(result.fig, use_container_width=True)
-            dl = st.columns(2)
-            with dl[0]:
-                png = io.BytesIO()
-                result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
-                png.seek(0)
-                st.download_button("Download plot (PNG)", png, file_name="method_comparison.png",
-                                   mime="image/png", use_container_width=True)
-            with dl[1]:
-                if st.session_state.get("pdf_bytes"):
-                    st.download_button("Generate report (PDF)", st.session_state["pdf_bytes"],
-                                       file_name=st.session_state.get("pdf_name", "report.pdf"),
-                                       mime="application/pdf", use_container_width=True)
-                else:
-                    st.caption("PDF report unavailable.")
+            png = io.BytesIO()
+            result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
+            png.seek(0)
+            st.download_button("Download plot (PNG)", png, file_name="method_comparison.png",
+                               mime="image/png")
 
 
 def _tol_desc(value, tol_type):
