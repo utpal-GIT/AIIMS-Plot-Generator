@@ -290,11 +290,13 @@ def _cat_chip(label, count, color):
             f"<div class='v' style='color:{color}'>{count}</div></div>")
 
 
-def _summary_row(label, value, color="#0f172a"):
+def _summary_row(label, value, color="#0f172a", indent=False):
+    lead = ("<span style='color:#cbd5e1;margin:0 6px 0 14px;'>└</span>"
+            if indent else "")
     return (
         "<div style='display:flex;justify-content:space-between;align-items:baseline;"
         "padding:7px 0;border-bottom:1px solid #f1f5f9;'>"
-        f"<span style='color:#475569;font-size:13px;'>{label}</span>"
+        f"<span style='color:#475569;font-size:13px;'>{lead}{label}</span>"
         f"<span style='color:{color};font-size:14px;font-weight:600;'>{value}</span></div>"
     )
 
@@ -321,14 +323,14 @@ def _render_statistics(s):
     overall_rows = [
         ("Total data points", str(s["n_total"])),
         ("Outliers", f"{ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", "#0f172a"),
-        ("Overestimated outliers", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#ea580c"),
-        ("Underestimated outliers", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#2563eb"),
+        ("Overestimated", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#ea580c", True),
+        ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#2563eb", True),
     ]
     valid_rows = [
         ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)"),
         ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#0f172a"),
-        ("Overestimated outliers", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#ea580c"),
-        ("Underestimated outliers", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#2563eb"),
+        ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#ea580c", True),
+        ("Underestimated", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#2563eb", True),
     ]
 
     cats = s.get("categories", {})

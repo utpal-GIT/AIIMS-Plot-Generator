@@ -307,13 +307,13 @@ def generate_plot(
         f"OVERALL SUMMARY\n"
         f"Total data points: {n_total}\n"
         f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)\n"
-        f"Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)\n"
-        f"Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)\n\n"
+        f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)\n"
+        f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)\n\n"
         f"VALID RANGE SUMMARY\n"
         f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)\n"
         f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)\n"
-        f"Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)\n"
-        f"Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)\n\n"
+        f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)\n"
+        f"     • Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)\n\n"
         f"(all % are of total data points)"
     )
     ax.annotate(info_text, xy=(1.02, 0.62), xycoords="axes fraction",
