@@ -79,6 +79,8 @@ st.markdown(
       .rchip .ar{color:#cbd5e1;}
       .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
       .dash-sub{font-size:14px;color:#64748b;margin:4px 0 0;}
+      /* Ensure bordered containers keep inner padding so content clears the border */
+      [data-testid="stVerticalBlockBorderWrapper"] > div{padding:0.85rem 1.05rem;}
     </style>
     """,
     unsafe_allow_html=True,
