@@ -11,6 +11,7 @@ import matplotlib
 
 matplotlib.use("Agg")  # headless backend for web/server rendering
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import TextArea, VPacker, AnchoredOffsetbox
 import statsmodels.api as sm
 
 
@@ -301,25 +302,45 @@ def generate_plot(
     min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
     max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
     ov, vr = overall, valid_range
-    info_text = (
-        f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°\n"
-        f"Analysis range: {min_text} – {max_text}\n\n"
-        f"OVERALL SUMMARY\n"
-        f"Total data points: {n_total}\n"
-        f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)\n"
-        f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)\n"
-        f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)\n\n"
-        f"VALID RANGE SUMMARY\n"
-        f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)\n"
-        f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)\n"
-        f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)\n"
-        f"     • Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)\n\n"
-        f"(all % are of total data points)"
-    )
-    ax.annotate(info_text, xy=(1.02, 0.62), xycoords="axes fraction",
-                fontsize=9.5, color="#b35f00", weight="bold", va="top", ha="left",
-                bbox=dict(facecolor="white", alpha=0.85, edgecolor="lightgray", pad=6),
-                annotation_clip=False)
+    # Colors matched to the data-point categories.
+    C_HEAD = "#1f2937"     # headings / general
+    C_TOTAL = "#334155"    # all points
+    C_VALID = "#16a34a"    # valid points (green)
+    C_OUT = "#f59e0b"      # outliers (amber)
+    C_OVER = "#ea580c"     # overestimated (orange)
+    C_UNDER = "#2563eb"    # underestimated (blue)
+    C_MUTE = "#94a3b8"
+
+    lines = [
+        (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
+        (f"Analysis range: {min_text} – {max_text}", C_HEAD),
+        ("", None),
+        ("OVERALL SUMMARY", C_HEAD),
+        (f"Total data points: {n_total}", C_TOTAL),
+        (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_OUT),
+        (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_OVER),
+        (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_UNDER),
+        ("", None),
+        ("VALID RANGE SUMMARY", C_HEAD),
+        (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_VALID),
+        (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_OUT),
+        (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_OVER),
+        (f"     • Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)", C_UNDER),
+        ("", None),
+        ("(all % are of total data points)", C_MUTE),
+    ]
+    children = []
+    for text, color in lines:
+        if text == "":
+            children.append(TextArea(" ", textprops=dict(fontsize=4)))
+        else:
+            children.append(TextArea(text, textprops=dict(color=color, fontsize=9.5, weight="bold")))
+    box = VPacker(children=children, align="left", pad=2, sep=3)
+    anchored = AnchoredOffsetbox(loc="upper left", child=box, pad=0.5, borderpad=0,
+                                 frameon=True, bbox_to_anchor=(1.02, 0.66),
+                                 bbox_transform=ax.transAxes)
+    anchored.patch.set(facecolor="white", edgecolor="lightgray", alpha=0.9)
+    ax.add_artist(anchored)
 
     fig.tight_layout()
 
