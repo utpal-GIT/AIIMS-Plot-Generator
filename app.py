@@ -274,22 +274,6 @@ def _stat_card(label, value):
     return f"<div class='sc'><div class='scl'>{label}</div><div class='scv'>{value}</div></div>"
 
 
-def _outlier_card(title, subtitle, d):
-    return (
-        f"<div class='sc'>"
-        f"<div class='scl'>{title}</div>"
-        f"<div class='scs'>{subtitle}</div>"
-        f"<div class='obreak'>"
-        f"<div><div class='n' style='color:#0f172a'>{d['outliers_n']}</div>"
-        f"<div class='t'>total · {d['outliers_pct']:.1f}%</div></div>"
-        f"<div><div class='n' style='color:#ea580c'>{d['over_n']}</div>"
-        f"<div class='t'>over · {d['over_pct']:.1f}%</div></div>"
-        f"<div><div class='n' style='color:#2563eb'>{d['under_n']}</div>"
-        f"<div class='t'>under · {d['under_pct']:.1f}%</div></div>"
-        f"</div></div>"
-    )
-
-
 # Point-category colors — identical to the plot markers.
 CAT_COLORS = [
     ("Valid", "valid", "#16a34a"),
@@ -306,29 +290,60 @@ def _cat_chip(label, count, color):
             f"<div class='v' style='color:{color}'>{count}</div></div>")
 
 
+def _summary_row(label, value, color="#0f172a"):
+    return (
+        "<div style='display:flex;justify-content:space-between;align-items:baseline;"
+        "padding:7px 0;border-bottom:1px solid #f1f5f9;'>"
+        f"<span style='color:#475569;font-size:13px;'>{label}</span>"
+        f"<span style='color:{color};font-size:14px;font-weight:600;'>{value}</span></div>"
+    )
+
+
+def _summary_card(title, rows):
+    body = "".join(_summary_row(*r) for r in rows)
+    return f"<div class='sc'><div class='scl' style='margin-bottom:4px;'>{title}</div>{body}</div>"
+
+
 def _render_statistics(s):
     import math
     rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
            if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
-    cards = [
+    ov, vr = s["overall"], s["valid_range"]
+
+    # Key metrics
+    metrics = [
         _stat_card("Analysis range", rng),
         _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
         _stat_card("OLS slope", f"{s['slope']:.4f}"),
         _stat_card("Mean difference", f"{s['mean_diff']:.3f}"),
-        _stat_card("Total points", str(s["n_total"])),
-        _stat_card("In valid range", str(s["n_in_range"])),
     ]
+
+    overall_rows = [
+        ("Total data points", str(s["n_total"])),
+        ("Outliers", f"{ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", "#0f172a"),
+        ("Overestimated outliers", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#ea580c"),
+        ("Underestimated outliers", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#2563eb"),
+    ]
+    valid_rows = [
+        ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)"),
+        ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#0f172a"),
+        ("Overestimated outliers", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#ea580c"),
+        ("Underestimated outliers", f"{vr['under_n']} ({vr['under_pct']:.1f}%)", "#2563eb"),
+    ]
+
     cats = s.get("categories", {})
     chips = "".join(_cat_chip(lbl, cats.get(key, 0), col) for lbl, key, col in CAT_COLORS)
-    ov, vr = s["overall"], s["valid_range"]
+
     st.markdown(
-        "<div class='grid2'>" + "".join(cards) + "</div>"
-        "<div class='scl' style='margin:12px 0 6px;'>Point categories</div>"
-        "<div class='tolwrap'>" + chips + "</div>"
+        "<div class='grid2'>" + "".join(metrics) + "</div>"
         "<div class='grid2' style='margin-top:12px;'>"
-        + _outlier_card("Outliers — overall", "Across all data points", ov)
-        + _outlier_card("Outliers — valid range", "Inside the analysis range", vr)
-        + "</div>",
+        + _summary_card("Overall plot summary", overall_rows)
+        + _summary_card("Valid range summary", valid_rows)
+        + "</div>"
+        "<div class='scl' style='margin:14px 0 6px;'>Point categories</div>"
+        "<div class='tolwrap'>" + chips + "</div>"
+        "<div class='scs' style='margin-top:8px;'>All percentages are out of the "
+        "total data points in the plot.</div>",
         unsafe_allow_html=True,
     )
 

@@ -200,25 +200,25 @@ def generate_plot(
     df_in_x = df[mask_x_range].copy()
     df_out_x = df[~mask_x_range].copy()
 
-    def _breakdown(sub, denom):
+    def _breakdown(sub):
+        # Every percentage is expressed out of the TOTAL data points (n_total).
         out = sub[sub["is_outlier"]]
         over = out[out["Diff"] > 0]
         under = out[out["Diff"] < 0]
-        n_out = len(out)
+        pct = lambda k: (k / n_total * 100.0) if n_total > 0 else 0.0
         return {
             "n_points": len(sub),
-            "outliers_n": n_out,
-            # Outliers as a percentage of all points in this scope.
-            "outliers_pct": (n_out / denom * 100.0) if denom > 0 else 0.0,
-            # Over / under as a percentage of the outliers (they sum to ~100%).
+            "n_points_pct": pct(len(sub)),
+            "outliers_n": len(out),
+            "outliers_pct": pct(len(out)),
             "over_n": len(over),
-            "over_pct": (len(over) / n_out * 100.0) if n_out > 0 else 0.0,
+            "over_pct": pct(len(over)),
             "under_n": len(under),
-            "under_pct": (len(under) / n_out * 100.0) if n_out > 0 else 0.0,
+            "under_pct": pct(len(under)),
         }
 
-    overall = _breakdown(df, n_total)
-    valid_range = _breakdown(df_in_x, len(df_in_x))
+    overall = _breakdown(df)
+    valid_range = _breakdown(df_in_x)
 
     # Four visual categories: in/out of valid range x in/out of tolerance.
     df_valid = df_in_x[~df_in_x["is_outlier"]]              # in range + within tol
@@ -300,22 +300,24 @@ def generate_plot(
     # Summary box (previous style) — below the legend, right of the axes.
     min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
     max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
+    ov, vr = overall, valid_range
     info_text = (
-        f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°\n\n"
-        f"Analysis range:\n"
-        f"   • Min X: {min_text}\n"
-        f"   • Max X: {max_text}\n\n"
+        f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°\n"
+        f"Analysis range: {min_text} – {max_text}\n\n"
+        f"OVERALL SUMMARY\n"
         f"Total data points: {n_total}\n"
-        f"Points in valid range: {len(df_in_x)}\n\n"
-        f"Outliers (overall): {overall['outliers_n']} ({overall['outliers_pct']:.1f}%)\n"
-        f"   • Over: {overall['over_n']} ({overall['over_pct']:.1f}%)\n"
-        f"   • Under: {overall['under_n']} ({overall['under_pct']:.1f}%)\n"
-        f"Outliers (valid range): {valid_range['outliers_n']} ({valid_range['outliers_pct']:.1f}%)\n"
-        f"   • Over: {valid_range['over_n']} ({valid_range['over_pct']:.1f}%)\n"
-        f"   • Under: {valid_range['under_n']} ({valid_range['under_pct']:.1f}%)"
+        f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)\n"
+        f"Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)\n"
+        f"Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)\n\n"
+        f"VALID RANGE SUMMARY\n"
+        f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)\n"
+        f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)\n"
+        f"Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)\n"
+        f"Underestimated: {vr['under_n']} ({vr['under_pct']:.1f}%)\n\n"
+        f"(all % are of total data points)"
     )
-    ax.annotate(info_text, xy=(1.02, 0.58), xycoords="axes fraction",
-                fontsize=10, color="#b35f00", weight="bold", va="top", ha="left",
+    ax.annotate(info_text, xy=(1.02, 0.62), xycoords="axes fraction",
+                fontsize=9.5, color="#b35f00", weight="bold", va="top", ha="left",
                 bbox=dict(facecolor="white", alpha=0.85, edgecolor="lightgray", pad=6),
                 annotation_clip=False)
 
