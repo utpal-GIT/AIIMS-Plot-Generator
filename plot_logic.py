@@ -233,10 +233,10 @@ def generate_plot(
     ax.set_facecolor("white")
     ax.set_axisbelow(True)
 
-    # Valid region — light green shading behind everything.
+    # Clinically valid region — light green shading behind everything.
     if np.isfinite(x_min) and np.isfinite(x_max):
         ax.axvspan(x_min, x_max, color="#bbf7d0", alpha=0.18, lw=0, zorder=0,
-                   label="Valid region")
+                   label="Clinically Valid Region")
 
     # Zero reference line.
     ax.axhline(0, color="#94a3b8", lw=1, zorder=1)
@@ -267,13 +267,16 @@ def generate_plot(
 
     # Data points — four categories, white-edged markers.
     ax.scatter(df_valid["X"], df_valid["Diff"], color="#16a34a", s=45, edgecolor="white",
-               linewidth=0.6, label="Valid (in range, within tolerance)", alpha=0.95, zorder=6)
+               linewidth=0.6,
+               label="Clinically Valid data (in Clinically Valid region, within tolerance limits)",
+               alpha=0.95, zorder=6)
     ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#f59e0b", s=45, edgecolor="white",
-               linewidth=0.6, label="Outlier (in range)", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Outlier (in Clinically Valid region)", alpha=0.95, zorder=6)
     ax.scatter(df_out_intol["X"], df_out_intol["Diff"], color="#3b82f6", s=42, edgecolor="white",
-               linewidth=0.6, label="Within tolerance (outside range)", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Within tolerance but outside Clinically Valid region",
+               alpha=0.95, zorder=6)
     ax.scatter(df_out_outlier["X"], df_out_outlier["Diff"], color="#dc2626", s=42, edgecolor="white",
-               linewidth=0.6, label="Outlier (outside range)", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Outlier (outside of Clinically Valid region)", alpha=0.95, zorder=6)
 
     # Valid-range boundary markers.
     for bx in (x_min, x_max):

@@ -300,10 +300,10 @@ def _stat_card(label, value):
 
 # Point-category colors — identical to the plot markers.
 CAT_COLORS = [
-    ("Valid", "valid", "#16a34a"),
-    ("Outlier · in range", "outlier_in_range", "#f59e0b"),
-    ("Within tol · outside range", "within_tol_outside", "#3b82f6"),
-    ("Outlier · outside range", "outlier_outside", "#dc2626"),
+    ("Clinically valid", "valid", "#16a34a"),
+    ("Outlier · in region", "outlier_in_range", "#f59e0b"),
+    ("Within tolerance · outside region", "within_tol_outside", "#3b82f6"),
+    ("Outlier · outside region", "outlier_outside", "#dc2626"),
 ]
 
 
