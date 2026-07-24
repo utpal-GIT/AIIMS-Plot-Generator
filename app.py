@@ -82,6 +82,9 @@ st.markdown(
       /* Force inner padding on the control bar so labels clear the border
          (robust across Streamlit versions via the stable st-key class) */
       .st-key-ctrlbar{padding:16px 18px !important;}
+      /* Vertical divider between Test parameter and Tolerance limits */
+      .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(2){
+        border-left:1px solid #e5e7eb; padding-left:1.4rem; margin-left:0.4rem;}
     </style>
     """,
     unsafe_allow_html=True,
