@@ -156,14 +156,10 @@ is_manager = auth.is_manager(current_role)
 def page_dashboard():
     params = config_store.load_params()
 
-    # ---- Header: title + subtitle (left), Export report (right) ----
+    # ---- Header: title + Export report on one row, subtitle below ----
     hc = st.columns([5, 1.4], vertical_alignment="center")
     with hc[0]:
-        st.markdown(
-            "<div class='dash-title'>Dashboard</div>"
-            "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<div class='dash-title'>Dashboard</div>", unsafe_allow_html=True)
     with hc[1]:
         pdf = st.session_state.get("pdf_bytes")
         st.download_button(
@@ -173,8 +169,12 @@ def page_dashboard():
             icon=":material/description:", use_container_width=True,
             help=None if pdf else "Generate a plot first",
         )
+    st.markdown(
+        "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
+        unsafe_allow_html=True,
+    )
 
-    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
 
     if not params:
         st.warning("No test parameters configured yet. Add one in **Configurations** "
