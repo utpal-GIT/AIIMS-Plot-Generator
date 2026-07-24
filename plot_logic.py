@@ -296,19 +296,19 @@ def generate_plot(
     ax.set_xlabel(x_label, fontsize=11, color="#374151")
     ax.set_ylabel(y_label, fontsize=11, color="#374151")
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
-              frameon=False, fontsize=9)
+              frameon=False, fontsize=8.5)
 
     # Summary box (previous style) — below the legend, right of the axes.
     min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
     max_text = f"{x_max:.2f}" if np.isfinite(x_max) else "None"
     ov, vr = overall, valid_range
-    # Colors matched to the data-point categories.
-    C_HEAD = "#1f2937"     # headings / general
-    C_TOTAL = "#334155"    # all points
-    C_VALID = "#16a34a"    # valid points (green)
-    C_OUT = "#f59e0b"      # outliers (amber)
-    C_OVER = "#ea580c"     # overestimated (orange)
-    C_UNDER = "#2563eb"    # underestimated (blue)
+    # Colors are the EXACT data-point marker colors used on the plot.
+    C_HEAD = "#1f2937"     # headings / general (neutral)
+    C_TOTAL = "#334155"    # all points (neutral)
+    C_VALID = "#16a34a"    # valid marker (green)
+    C_OUT = "#f59e0b"      # outlier marker (amber)
+    C_OVER = "#dc2626"     # red marker  -> overestimated (above)
+    C_UNDER = "#3b82f6"    # blue marker -> underestimated (below)
     C_MUTE = "#94a3b8"
 
     lines = [
@@ -335,9 +335,10 @@ def generate_plot(
             children.append(TextArea(" ", textprops=dict(fontsize=4)))
         else:
             children.append(TextArea(text, textprops=dict(color=color, fontsize=9.5, weight="bold")))
-    box = VPacker(children=children, align="left", pad=2, sep=3)
+    box = VPacker(children=children, align="left", pad=2, sep=2.5)
+    # Anchored lower than the legend so there is a clear gap between the two.
     anchored = AnchoredOffsetbox(loc="upper left", child=box, pad=0.5, borderpad=0,
-                                 frameon=True, bbox_to_anchor=(1.02, 0.66),
+                                 frameon=True, bbox_to_anchor=(1.02, 0.48),
                                  bbox_transform=ax.transAxes)
     anchored.patch.set(facecolor="white", edgecolor="lightgray", alpha=0.9)
     ax.add_artist(anchored)
