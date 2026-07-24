@@ -267,16 +267,13 @@ def generate_plot(
 
     # Data points — four categories, white-edged markers.
     ax.scatter(df_valid["X"], df_valid["Diff"], color="#16a34a", s=45, edgecolor="white",
-               linewidth=0.6,
-               label="Clinically Valid data (in Clinically Valid region, within tolerance limits)",
-               alpha=0.95, zorder=6)
+               linewidth=0.6, label="Valid", alpha=0.95, zorder=6)
     ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#f59e0b", s=45, edgecolor="white",
-               linewidth=0.6, label="Outlier (in Clinically Valid region)", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Outlier · in region", alpha=0.95, zorder=6)
     ax.scatter(df_out_intol["X"], df_out_intol["Diff"], color="#3b82f6", s=42, edgecolor="white",
-               linewidth=0.6, label="Within tolerance but outside Clinically Valid region",
-               alpha=0.95, zorder=6)
+               linewidth=0.6, label="Within tolerance · outside region", alpha=0.95, zorder=6)
     ax.scatter(df_out_outlier["X"], df_out_outlier["Diff"], color="#dc2626", s=42, edgecolor="white",
-               linewidth=0.6, label="Outlier (outside of Clinically Valid region)", alpha=0.95, zorder=6)
+               linewidth=0.6, label="Outlier · outside region", alpha=0.95, zorder=6)
 
     # Valid-range boundary markers.
     for bx in (x_min, x_max):
