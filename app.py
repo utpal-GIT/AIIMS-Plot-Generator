@@ -323,7 +323,7 @@ def _stat_card(label, value):
 CAT_COLORS = [
     ("Valid", "valid", "#16a34a"),
     ("Outlier · in valid region", "outlier_in_range", "#f59e0b"),
-    ("Within tolerance · outside valid region", "within_tol_outside", "#3b82f6"),
+    ("Within tolerance · outside valid region", "within_tol_outside", "#0891b2"),
     ("Outlier · outside valid region", "outlier_outside", "#dc2626"),
 ]
 

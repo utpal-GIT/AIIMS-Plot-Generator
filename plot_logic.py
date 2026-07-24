@@ -270,7 +270,7 @@ def generate_plot(
                linewidth=0.6, label="Valid", alpha=0.95, zorder=6)
     ax.scatter(df_outliers_in["X"], df_outliers_in["Diff"], color="#f59e0b", s=45, edgecolor="white",
                linewidth=0.6, label="Outlier · in valid region", alpha=0.95, zorder=6)
-    ax.scatter(df_out_intol["X"], df_out_intol["Diff"], color="#3b82f6", s=42, edgecolor="white",
+    ax.scatter(df_out_intol["X"], df_out_intol["Diff"], color="#0891b2", s=42, edgecolor="white",
                linewidth=0.6, label="Within tolerance · outside valid region", alpha=0.95, zorder=6)
     ax.scatter(df_out_outlier["X"], df_out_outlier["Diff"], color="#dc2626", s=42, edgecolor="white",
                linewidth=0.6, label="Outlier · outside valid region", alpha=0.95, zorder=6)
