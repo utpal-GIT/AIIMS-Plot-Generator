@@ -103,7 +103,11 @@ st.markdown(
       .st-key-usertable [data-testid="stHorizontalBlock"]:has(.scl){padding-bottom:16px;}
       [class*="st-key-sett_reset"] button,[class*="st-key-sett_del"] button{
         background:transparent !important; border:none !important; box-shadow:none !important;
-        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
+        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;
+        /* Streamlit collapses the tall-avatar cell's stMarkdown to text height,
+           so the content group renders ~9px below the button columns' centre.
+           Nudge the icon buttons down to sit on the same line. */
+        transform:translateY(9px);}
       [class*="st-key-sett_reset"] button:hover{color:#2563eb !important;}
       [class*="st-key-sett_del"] button{color:#f87171 !important;}
       [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
