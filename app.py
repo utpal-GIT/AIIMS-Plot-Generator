@@ -97,6 +97,16 @@ st.markdown(
       [class*="st-key-cfg_edit"] button:hover{color:#2563eb !important;}
       [class*="st-key-cfg_del"] button{color:#f87171 !important;}
       [class*="st-key-cfg_del"] button:hover{color:#dc2626 !important;}
+      /* Settings users table row separators + icon-only action buttons */
+      .st-key-usertable [data-testid="stHorizontalBlock"]{
+        border-bottom:1px solid #eef0f2; padding-bottom:10px;}
+      .st-key-usertable [data-testid="stHorizontalBlock"]:has(.scl){padding-bottom:16px;}
+      [class*="st-key-sett_reset"] button,[class*="st-key-sett_del"] button{
+        background:transparent !important; border:none !important; box-shadow:none !important;
+        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
+      [class*="st-key-sett_reset"] button:hover{color:#2563eb !important;}
+      [class*="st-key-sett_del"] button{color:#f87171 !important;}
+      [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
       .st-key-belowcard,.st-key-abovecard{background:#f8fafc !important;}
       .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
       .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
@@ -159,6 +169,26 @@ def _initials(name):
         parts = (name or "?").split()
     letters = [p[0] for p in parts[:2] if p]
     return ("".join(letters).upper() or "?")
+
+
+_AVATAR_PALETTE = [
+    ("#dcfce7", "#16a34a"), ("#dbeafe", "#2563eb"), ("#fef3c7", "#b45309"),
+    ("#f3e8ff", "#7c3aed"), ("#ffe4e6", "#e11d48"), ("#e0f2fe", "#0891b2"),
+]
+
+
+def _avatar_color(key):
+    """Deterministic (bg, fg) avatar colours from a string key."""
+    i = sum(ord(c) for c in (key or "?")) % len(_AVATAR_PALETTE)
+    return _AVATAR_PALETTE[i]
+
+
+def _role_badge(role_label):
+    colors = {"Super admin": ("#dcfce7", "#16a34a"), "Admin": ("#dbeafe", "#2563eb"),
+              "User": ("#f1f5f9", "#64748b")}
+    bg, fg = colors.get(role_label, ("#f1f5f9", "#64748b"))
+    return (f"<span style='background:{bg}; color:{fg}; font-weight:600; font-size:12px; "
+            f"padding:4px 12px; border-radius:999px; white-space:nowrap;'>{role_label}</span>")
 
 
 def _auth_brand(subtitle, show_name=True):
@@ -543,6 +573,80 @@ def _param_dialog(params, editing):
             st.error(msg)
 
 
+@st.dialog("Add a user")
+def _add_user_dialog(roles_for_actor):
+    with st.form("add_user_dialog_form"):
+        c = st.columns(2)
+        new_name = c[0].text_input("Full name")
+        new_email = c[1].text_input("Email (optional)")
+        c2 = st.columns(2)
+        new_username = c2[0].text_input("Username", help="3+ chars: letters, numbers, . _ -")
+        new_role = c2[1].selectbox("Role", roles_for_actor,
+                                   format_func=lambda r: auth.ROLE_LABELS[r])
+        new_pw = st.text_input("Temporary password", type="password",
+                               help=f"At least {auth.MIN_PASSWORD_LEN} characters")
+        submitted = st.form_submit_button("Add user", type="primary")
+    if submitted:
+        ok, msg = auth.add_user(config, new_username, new_name, new_email, new_pw,
+                                role=new_role, actor_role=current_role)
+        if ok:
+            st.rerun()
+        else:
+            st.error(msg)
+
+
+@st.dialog("Manage user")
+def _manage_user_dialog(user, roles_for_actor):
+    st.markdown(
+        f"<div style='font-weight:600; color:#0f172a;'>{user['name']}</div>"
+        f"<div class='mono' style='font-size:12px;'>{user['username']}</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    st.markdown("**Reset password**")
+    with st.form("reset_pw_dialog_form", clear_on_submit=True):
+        r_pw = st.text_input("New password", type="password",
+                             help=f"At least {auth.MIN_PASSWORD_LEN} characters")
+        if st.form_submit_button("Reset password", type="primary"):
+            ok, msg = auth.reset_password(config, user["username"], r_pw,
+                                          actor_role=current_role)
+            (st.success if ok else st.error)(msg)
+
+    if len(roles_for_actor) > 1:
+        st.divider()
+        st.markdown("**Change role**")
+        cur_key = next((k for k, v in auth.ROLE_LABELS.items() if v == user["role"]),
+                       auth.ROLE_USER)
+        idx = roles_for_actor.index(cur_key) if cur_key in roles_for_actor else 0
+        with st.form("role_dialog_form"):
+            g_role = st.selectbox("Role", roles_for_actor, index=idx,
+                                  format_func=lambda r: auth.ROLE_LABELS[r])
+            if st.form_submit_button("Update role"):
+                ok, msg = auth.set_role(config, user["username"], g_role,
+                                        actor_role=current_role)
+                if ok:
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+
+@st.dialog("Delete user")
+def _delete_user_dialog(user):
+    st.warning(f"Permanently delete **{user['name']}** ({user['username']})? "
+               "This cannot be undone.")
+    c = st.columns(2)
+    if c[0].button("Cancel", use_container_width=True):
+        st.rerun()
+    if c[1].button("Delete user", type="primary", use_container_width=True):
+        ok, msg = auth.delete_user(config, user["username"], current_username,
+                                   actor_role=current_role)
+        if ok:
+            st.rerun()
+        else:
+            st.error(msg)
+
+
 def page_configurations():
     hc = st.columns([5, 1.6], vertical_alignment="center")
     with hc[0]:
@@ -681,12 +785,71 @@ def page_account():
 
 
 def page_settings():
-    st.header("Settings")
-    if is_manager:
-        auth.render_admin_panel(config, current_username, current_role)
+    if not is_manager:
+        st.markdown(
+            "<div class='dash-title'>Settings</div>"
+            "<div class='dash-sub'>No settings are available for your role. "
+            "Contact an administrator to manage users.</div>",
+            unsafe_allow_html=True,
+        )
+        return
+
+    roles_for_actor = auth.assignable_roles(current_role)
+    targets = set(auth.manageable_usernames(config, current_role))
+    if current_role == auth.ROLE_SUPERADMIN:
+        sub = ("User administration — you can manage all users, "
+               "including admins and super admins.")
     else:
-        st.info("No settings are available for your role. Contact an administrator "
-                "to manage users.")
+        sub = "User administration — you can manage regular users."
+
+    hc = st.columns([5, 1.4], vertical_alignment="center")
+    with hc[0]:
+        st.markdown(f"<div class='dash-title'>Settings</div>"
+                    f"<div class='dash-sub'>{sub}</div>", unsafe_allow_html=True)
+    with hc[1]:
+        add_clicked = st.button("Add user", icon=":material/add:", type="primary",
+                                use_container_width=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    COLS = [2.6, 2, 1.4, 0.5, 0.5]
+    manage_target = None
+    delete_target = None
+
+    # ---- Users table ----
+    with st.container(border=True, key="usertable"):
+        head = st.columns(COLS)
+        for col, title in zip(head, ["Name", "Username", "Role", "", ""]):
+            col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
+        for u in auth.list_users(config):
+            r = st.columns(COLS, vertical_alignment="center")
+            bg, fg = _avatar_color(u["username"])
+            r[0].markdown(
+                "<div style='display:flex; align-items:center; gap:10px;'>"
+                f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
+                f"color:{fg}; display:flex; align-items:center; justify-content:center; "
+                f"font-weight:600; font-size:12px; flex:none;'>{_initials(u['name'])}</div>"
+                f"<div style='font-weight:600; color:#0f172a;'>{u['name']}</div></div>",
+                unsafe_allow_html=True,
+            )
+            r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
+            r[2].markdown(_role_badge(u["role"]), unsafe_allow_html=True)
+            if u["username"] in targets:
+                if r[3].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
+                               help="Reset password / role"):
+                    manage_target = u
+                is_self = u["username"] == current_username
+                if r[4].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
+                               help=("You can't delete your own account" if is_self else "Delete"),
+                               disabled=is_self):
+                    delete_target = u
+
+    # ---- Modals ----
+    if add_clicked:
+        _add_user_dialog(roles_for_actor)
+    elif manage_target:
+        _manage_user_dialog(manage_target, roles_for_actor)
+    elif delete_target:
+        _delete_user_dialog(delete_target)
 
 
 # ==========================================================================
