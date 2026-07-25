@@ -108,6 +108,14 @@ st.markdown(
          render little/asymmetric padding) */
       .st-key-acctprofile,.st-key-acctedit,.st-key-acctpw{
         padding:18px 22px !important;}
+      /* Profile card is a single row — tighten it and kill any stray
+         top/bottom margins on the markdown so the avatar row is
+         perfectly centered in the box */
+      .st-key-acctprofile{padding-top:14px !important; padding-bottom:14px !important;}
+      .st-key-acctprofile [data-testid="stElementContainer"],
+      .st-key-acctprofile [data-testid="stMarkdown"],
+      .st-key-acctprofile [data-testid="stMarkdownContainer"]{
+        margin-top:0 !important; margin-bottom:0 !important;}
       /* Vertical dividers: between parameter|tolerance and tolerance|generate */
       .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(n+2){
         border-left:1px solid #e5e7eb; padding-left:1.4rem; margin-left:0.4rem;}
