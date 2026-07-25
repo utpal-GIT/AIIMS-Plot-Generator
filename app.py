@@ -99,7 +99,11 @@ st.markdown(
         justify-content:flex-start !important; text-align:left !important;
         background:transparent !important; border:none !important; box-shadow:none !important;
         color:#475569 !important; font-weight:500 !important; padding-left:26px !important;}
-      section[data-testid="stSidebar"] .st-key-sbbottom button > *{margin-right:auto !important;}
+      /* the flex-centering lives on the button's inner content wrapper(s) */
+      section[data-testid="stSidebar"] .st-key-sbbottom button > div{
+        display:flex !important; justify-content:flex-start !important; width:100% !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom button [data-has-shortcut]{
+        margin-right:auto !important; margin-left:0 !important;}
       section[data-testid="stSidebar"] .st-key-sbbottom button p{text-align:left !important;}
       section[data-testid="stSidebar"] .st-key-sbbottom button:hover{
         background:#f1f5f9 !important; color:#0f172a !important;}
