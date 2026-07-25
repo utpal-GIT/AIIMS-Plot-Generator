@@ -94,14 +94,14 @@ st.markdown(
       /* Sidebar bottom section pinned to the bottom (logout + user card) */
       section[data-testid="stSidebar"] .st-key-sbbottom{
         position:absolute; bottom:1.75rem; left:0.75rem; right:0.75rem;}
-      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button{
+      section[data-testid="stSidebar"] .st-key-sbbottom button{
         width:100% !important; display:flex !important; align-items:center !important;
         justify-content:flex-start !important; text-align:left !important;
         background:transparent !important; border:none !important; box-shadow:none !important;
         color:#475569 !important; font-weight:500 !important; padding-left:26px !important;}
-      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button p{
-        text-align:left !important;}
-      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button:hover{
+      section[data-testid="stSidebar"] .st-key-sbbottom button > *{margin-right:auto !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom button p{text-align:left !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom button:hover{
         background:#f1f5f9 !important; color:#0f172a !important;}
     </style>
     """,
