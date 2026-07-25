@@ -576,7 +576,7 @@ def page_configurations():
 
 
 def page_account():
-    outer = st.columns([1, 2.4, 1])
+    outer = st.columns([1, 5, 1])
     with outer[1]:
         st.markdown(
             "<div class='dash-title'>Account</div>"
@@ -588,81 +588,77 @@ def page_account():
         name = st.session_state.get("name", "")
         role_label = auth.ROLE_LABELS.get(current_role, current_role)
 
-        # ---- Profile card ----
+        # ---- Profile card (avatar + info, vertically centered) ----
         with st.container(border=True, key="acctprofile"):
-            pc = st.columns([3, 1], vertical_alignment="center")
-            with pc[0]:
-                st.markdown(
-                    "<div style='display:flex; align-items:center; gap:12px;'>"
-                    f"<div style='width:44px; height:44px; border-radius:50%; background:#16a34a; "
-                    f"color:#fff; display:flex; align-items:center; justify-content:center; "
-                    f"font-weight:600; font-size:16px; flex:none;'>{_initials(name)}</div>"
-                    "<div>"
-                    f"<div style='font-size:16px; font-weight:600; color:#0f172a;'>{name}</div>"
-                    f"<div class='mono' style='color:#94a3b8; font-size:12px;'>{current_username}</div>"
-                    "</div></div>",
-                    unsafe_allow_html=True,
-                )
-            with pc[1]:
-                st.markdown(
-                    "<div style='text-align:right;'><span style='background:#dcfce7; color:#16a34a; "
-                    f"font-weight:600; font-size:12px; padding:4px 11px; border-radius:999px; "
-                    f"white-space:nowrap;'>{role_label}</span></div>",
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                "<div style='display:flex; align-items:center; justify-content:space-between; gap:16px;'>"
+                "<div style='display:flex; align-items:center; gap:12px;'>"
+                f"<div style='width:44px; height:44px; border-radius:50%; background:#16a34a; "
+                f"color:#fff; display:flex; align-items:center; justify-content:center; "
+                f"font-weight:600; font-size:16px; flex:none;'>{_initials(name)}</div>"
+                "<div style='line-height:1.3;'>"
+                f"<div style='font-size:16px; font-weight:600; color:#0f172a;'>{name}</div>"
+                f"<div class='mono' style='color:#94a3b8; font-size:12px;'>{current_username}</div>"
+                "</div></div>"
+                "<span style='background:#dcfce7; color:#16a34a; font-weight:600; font-size:12px; "
+                f"padding:4px 11px; border-radius:999px; white-space:nowrap;'>{role_label}</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        # ---- Edit profile (display name + username) ----
-        with st.container(border=True, key="acctedit"):
-            st.markdown("**Profile**")
-            with st.form("profile_form"):
-                new_name = st.text_input("Display name", value=name)
-                new_un = st.text_input("Username", value=current_username,
-                                       help="Changing your username will sign you out.")
-                saved = st.form_submit_button("Save profile", type="primary")
-            if saved:
-                un_changed = new_un.strip() != current_username
-                name_changed = new_name.strip() != name and new_name.strip()
-                if un_changed:
-                    if name_changed:
-                        auth.change_display_name(config, current_username, new_name)
-                    ok, msg = auth.change_username(config, current_username, new_un)
-                    if ok:
-                        st.session_state["_flash"] = "Username updated — please sign in with your new username."
-                        authenticator.logout(location="unrendered")
-                        for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
-                            st.session_state.pop(k, None)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                elif name_changed:
-                    ok, msg = auth.change_display_name(config, current_username, new_name)
-                    if ok:
-                        st.session_state["name"] = new_name.strip()
-                        st.success("Profile updated.")
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.info("No changes to save.")
+        # ---- Profile edit + Change password, side by side ----
+        cols = st.columns(2, gap="medium")
 
-        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+        with cols[0]:
+            with st.container(border=True, key="acctedit"):
+                st.markdown("**Profile**")
+                with st.form("profile_form"):
+                    new_name = st.text_input("Display name", value=name)
+                    new_un = st.text_input("Username", value=current_username,
+                                           help="Changing your username will sign you out.")
+                    saved = st.form_submit_button("Save profile", type="primary")
+                if saved:
+                    un_changed = new_un.strip() != current_username
+                    name_changed = new_name.strip() != name and new_name.strip()
+                    if un_changed:
+                        if name_changed:
+                            auth.change_display_name(config, current_username, new_name)
+                        ok, msg = auth.change_username(config, current_username, new_un)
+                        if ok:
+                            st.session_state["_flash"] = "Username updated — please sign in with your new username."
+                            authenticator.logout(location="unrendered")
+                            for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
+                                st.session_state.pop(k, None)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    elif name_changed:
+                        ok, msg = auth.change_display_name(config, current_username, new_name)
+                        if ok:
+                            st.session_state["name"] = new_name.strip()
+                            st.success("Profile updated.")
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.info("No changes to save.")
 
-        # ---- Change password ----
-        with st.container(border=True, key="acctpw"):
-            st.markdown("**Change password**")
-            with st.form("change_pw", clear_on_submit=True):
-                old = st.text_input("Current password", type="password")
-                new1 = st.text_input("New password", type="password")
-                new2 = st.text_input("Confirm new password", type="password")
-                saved_pw = st.form_submit_button("Update password", type="primary")
-            if saved_pw:
-                if new1 != new2:
-                    st.error("New passwords do not match.")
-                else:
-                    ok, msg = auth.change_own_password(config, current_username, old, new1)
-                    (st.success if ok else st.error)(msg)
+        with cols[1]:
+            with st.container(border=True, key="acctpw"):
+                st.markdown("**Change password**")
+                with st.form("change_pw", clear_on_submit=True):
+                    old = st.text_input("Current password", type="password")
+                    new1 = st.text_input("New password", type="password")
+                    new2 = st.text_input("Confirm new password", type="password")
+                    saved_pw = st.form_submit_button("Update password", type="primary")
+                if saved_pw:
+                    if new1 != new2:
+                        st.error("New passwords do not match.")
+                    else:
+                        ok, msg = auth.change_own_password(config, current_username, old, new1)
+                        (st.success if ok else st.error)(msg)
 
 
 def page_settings():
