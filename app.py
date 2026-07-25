@@ -596,14 +596,16 @@ def page_account():
         # ---- Profile card (avatar + info, vertically centered) ----
         with st.container(border=True, key="acctprofile"):
             st.markdown(
-                "<div style='display:flex; align-items:center; justify-content:space-between; gap:16px;'>"
-                "<div style='display:flex; align-items:center; gap:12px;'>"
+                "<div style='display:flex; align-items:center; justify-content:space-between; "
+                "gap:16px; min-height:44px;'>"
+                "<div style='display:flex; align-items:center; gap:12px; height:44px;'>"
                 f"<div style='width:44px; height:44px; border-radius:50%; background:#16a34a; "
                 f"color:#fff; display:flex; align-items:center; justify-content:center; "
                 f"font-weight:600; font-size:16px; flex:none;'>{_initials(name)}</div>"
-                "<div style='line-height:1.3;'>"
-                f"<div style='font-size:16px; font-weight:600; color:#0f172a;'>{name}</div>"
-                f"<div class='mono' style='color:#94a3b8; font-size:12px;'>{current_username}</div>"
+                "<div style='display:flex; flex-direction:column; justify-content:center; "
+                "height:44px; line-height:1.25;'>"
+                f"<div style='font-size:16px; font-weight:600; color:#0f172a; margin:0;'>{name}</div>"
+                f"<div class='mono' style='color:#94a3b8; font-size:12px; margin:0;'>{current_username}</div>"
                 "</div></div>"
                 "<span style='background:#dcfce7; color:#16a34a; font-weight:600; font-size:12px; "
                 f"padding:4px 11px; border-radius:999px; white-space:nowrap;'>{role_label}</span>"
