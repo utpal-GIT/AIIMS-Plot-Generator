@@ -827,12 +827,13 @@ def page_settings():
             r = st.columns(COLS, vertical_alignment="center")
             bg, fg = _avatar_color(u["username"])
             r[0].markdown(
-                "<div style='display:flex; align-items:center; gap:10px;'>"
-                f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
-                f"color:{fg}; display:flex; align-items:center; justify-content:center; "
-                f"font-weight:600; font-size:12px; flex:none;'>{_initials(u['name'])}</div>"
-                f"<div style='height:34px; display:flex; align-items:center; font-weight:600; "
-                f"color:#0f172a;'>{u['name']}</div></div>",
+                "<div style='white-space:nowrap; line-height:1;'>"
+                f"<span style='display:inline-flex; vertical-align:middle; width:34px; "
+                f"height:34px; border-radius:50%; background:{bg}; color:{fg}; "
+                f"align-items:center; justify-content:center; font-weight:600; "
+                f"font-size:12px;'>{_initials(u['name'])}</span>"
+                f"<span style='display:inline-block; vertical-align:middle; margin-left:10px; "
+                f"font-weight:600; color:#0f172a; line-height:1;'>{u['name']}</span></div>",
                 unsafe_allow_html=True,
             )
             r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
