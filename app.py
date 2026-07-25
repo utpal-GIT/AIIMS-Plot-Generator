@@ -814,36 +814,44 @@ def page_settings():
                                 use_container_width=True)
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    COLS = [2.6, 2, 1.4, 0.5, 0.5]
+    # Content is one column (avatar/name/username/role rendered as a single
+    # flex row so they share one baseline), plus two narrow action columns.
+    COLS = [6, 0.5, 0.5]
     manage_target = None
     delete_target = None
 
     # ---- Users table ----
     with st.container(border=True, key="usertable"):
         head = st.columns(COLS)
-        for col, title in zip(head, ["Name", "Username", "Role", "", ""]):
-            col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
+        head[0].markdown(
+            "<div style='display:flex;'>"
+            "<div style='flex:2.6;' class='scl'>Name</div>"
+            "<div style='flex:2;' class='scl'>Username</div>"
+            "<div style='flex:1.4;' class='scl'>Role</div></div>",
+            unsafe_allow_html=True,
+        )
         for u in auth.list_users(config):
             r = st.columns(COLS, vertical_alignment="center")
             bg, fg = _avatar_color(u["username"])
             r[0].markdown(
-                "<div style='white-space:nowrap; line-height:1;'>"
-                f"<span style='display:inline-flex; vertical-align:middle; width:34px; "
-                f"height:34px; border-radius:50%; background:{bg}; color:{fg}; "
-                f"align-items:center; justify-content:center; font-weight:600; "
-                f"font-size:12px;'>{_initials(u['name'])}</span>"
-                f"<span style='display:inline-block; vertical-align:middle; margin-left:10px; "
-                f"font-weight:600; color:#0f172a; line-height:1;'>{u['name']}</span></div>",
+                "<div style='display:flex; align-items:center;'>"
+                "<div style='flex:2.6; display:flex; align-items:center; gap:10px; min-width:0;'>"
+                f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
+                f"color:{fg}; display:flex; align-items:center; justify-content:center; "
+                f"font-weight:600; font-size:12px; flex:none;'>{_initials(u['name'])}</div>"
+                f"<div style='font-weight:600; color:#0f172a; overflow:hidden; "
+                f"text-overflow:ellipsis; white-space:nowrap;'>{u['name']}</div></div>"
+                f"<div style='flex:2;'><span class='mono'>{u['username']}</span></div>"
+                f"<div style='flex:1.4;'>{_role_badge(u['role'])}</div>"
+                "</div>",
                 unsafe_allow_html=True,
             )
-            r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
-            r[2].markdown(_role_badge(u["role"]), unsafe_allow_html=True)
             if u["username"] in targets:
-                if r[3].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
+                if r[1].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
                                help="Reset password / role"):
                     manage_target = u
                 is_self = u["username"] == current_username
-                if r[4].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
+                if r[2].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
                                help=("You can't delete your own account" if is_self else "Delete"),
                                disabled=is_self):
                     delete_target = u
