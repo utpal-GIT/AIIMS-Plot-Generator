@@ -82,7 +82,9 @@ st.markdown(
             color:#475569;font-size:14px;}
       /* Configurations table row separators + icon-only edit/delete buttons */
       .st-key-cfgtable [data-testid="stHorizontalBlock"]{
-        border-bottom:1px solid #eef0f2; padding-bottom:8px;}
+        border-bottom:1px solid #eef0f2; padding-bottom:10px;}
+      /* extra breathing room under the header row before its line */
+      .st-key-cfgtable [data-testid="stHorizontalBlock"]:has(.scl){padding-bottom:16px;}
       [class*="st-key-cfg_edit"] button,[class*="st-key-cfg_del"] button{
         background:transparent !important; border:none !important; box-shadow:none !important;
         min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
