@@ -610,12 +610,17 @@ def page_account():
 
         # ---- Profile (display name + username) ----
         with st.container(border=True, key="acctedit"):
-            st.markdown("**Profile**")
+            st.markdown("**Profile details**")
+            st.caption("Your display name and sign-in username.")
             with st.form("profile_form"):
-                new_name = st.text_input("Display name", value=name)
-                new_un = st.text_input("Username", value=current_username,
-                                       help="Changing your username will sign you out.")
-                saved = st.form_submit_button("Save profile", type="primary")
+                ec = st.columns(2)
+                new_name = ec[0].text_input("Display name", value=name)
+                new_un = ec[1].text_input("Username", value=current_username)
+                bc = st.columns([1, 2.4], vertical_alignment="center")
+                with bc[0]:
+                    saved = st.form_submit_button("Save changes", type="primary")
+                with bc[1]:
+                    st.caption("Changing your username changes how you sign in.")
             if saved:
                 un_changed = new_un.strip() != current_username
                 name_changed = new_name.strip() != name and new_name.strip()
