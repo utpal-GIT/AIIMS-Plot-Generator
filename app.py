@@ -576,49 +576,52 @@ def page_configurations():
 
 
 def page_account():
-    st.markdown(
-        "<div class='dash-title'>Account</div>"
-        "<div class='dash-sub'>Your profile and password.</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    outer = st.columns([1, 2.4, 1])
+    with outer[1]:
+        st.markdown(
+            "<div class='dash-title'>Account</div>"
+            "<div class='dash-sub'>Your profile and password.</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    name = st.session_state.get("name", "")
-    role_label = auth.ROLE_LABELS.get(current_role, current_role)
+        name = st.session_state.get("name", "")
+        role_label = auth.ROLE_LABELS.get(current_role, current_role)
 
-    # ---- Profile card ----
-    with st.container(border=True, key="acctprofile"):
-        pc = st.columns([5, 2], vertical_alignment="center")
-        with pc[0]:
-            st.markdown(
-                "<div style='display:flex; align-items:center; gap:16px;'>"
-                f"<div style='width:64px; height:64px; border-radius:50%; background:#16a34a; "
-                f"color:#fff; display:flex; align-items:center; justify-content:center; "
-                f"font-weight:600; font-size:22px; flex:none;'>{_initials(name)}</div>"
-                "<div>"
-                f"<div style='font-size:22px; font-weight:600; color:#0f172a;'>{name}</div>"
-                f"<div class='mono' style='color:#94a3b8;'>{current_username}</div>"
-                "</div></div>",
-                unsafe_allow_html=True,
-            )
-        with pc[1]:
-            st.markdown(
-                "<div style='text-align:right;'><span style='background:#dcfce7; color:#16a34a; "
-                f"font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px;'>{role_label}</span></div>",
-                unsafe_allow_html=True,
-            )
+        # ---- Profile card ----
+        with st.container(border=True, key="acctprofile"):
+            pc = st.columns([3, 1], vertical_alignment="center")
+            with pc[0]:
+                st.markdown(
+                    "<div style='display:flex; align-items:center; gap:12px;'>"
+                    f"<div style='width:44px; height:44px; border-radius:50%; background:#16a34a; "
+                    f"color:#fff; display:flex; align-items:center; justify-content:center; "
+                    f"font-weight:600; font-size:16px; flex:none;'>{_initials(name)}</div>"
+                    "<div>"
+                    f"<div style='font-size:16px; font-weight:600; color:#0f172a;'>{name}</div>"
+                    f"<div class='mono' style='color:#94a3b8; font-size:12px;'>{current_username}</div>"
+                    "</div></div>",
+                    unsafe_allow_html=True,
+                )
+            with pc[1]:
+                st.markdown(
+                    "<div style='text-align:right;'><span style='background:#dcfce7; color:#16a34a; "
+                    f"font-weight:600; font-size:12px; padding:4px 11px; border-radius:999px; "
+                    f"white-space:nowrap;'>{role_label}</span></div>",
+                    unsafe_allow_html=True,
+                )
 
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    # ---- Edit profile (display name + username) ----
-    with st.container(border=True, key="acctedit"):
-        st.markdown("**Profile**")
-        with st.form("profile_form"):
-            ec = st.columns(2)
-            new_name = ec[0].text_input("Display name", value=name)
-            new_un = ec[1].text_input("Username", value=current_username,
-                                      help="Changing your username will sign you out.")
-            if st.form_submit_button("Save profile", type="primary"):
+        # ---- Edit profile (display name + username) ----
+        with st.container(border=True, key="acctedit"):
+            st.markdown("**Profile**")
+            with st.form("profile_form"):
+                new_name = st.text_input("Display name", value=name)
+                new_un = st.text_input("Username", value=current_username,
+                                       help="Changing your username will sign you out.")
+                saved = st.form_submit_button("Save profile", type="primary")
+            if saved:
                 un_changed = new_un.strip() != current_username
                 name_changed = new_name.strip() != name and new_name.strip()
                 if un_changed:
@@ -644,16 +647,17 @@ def page_account():
                 else:
                     st.info("No changes to save.")
 
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    # ---- Change password ----
-    with st.container(border=True, key="acctpw"):
-        st.markdown("**Change password**")
-        with st.form("change_pw", clear_on_submit=True):
-            old = st.text_input("Current password", type="password")
-            new1 = st.text_input("New password", type="password")
-            new2 = st.text_input("Confirm new password", type="password")
-            if st.form_submit_button("Update password", type="primary"):
+        # ---- Change password ----
+        with st.container(border=True, key="acctpw"):
+            st.markdown("**Change password**")
+            with st.form("change_pw", clear_on_submit=True):
+                old = st.text_input("Current password", type="password")
+                new1 = st.text_input("New password", type="password")
+                new2 = st.text_input("Confirm new password", type="password")
+                saved_pw = st.form_submit_button("Update password", type="primary")
+            if saved_pw:
                 if new1 != new2:
                     st.error("New passwords do not match.")
                 else:
