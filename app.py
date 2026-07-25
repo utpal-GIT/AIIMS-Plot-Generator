@@ -78,6 +78,18 @@ st.markdown(
              font-family:ui-monospace,"SFMono-Regular","Cascadia Code","Courier New",monospace;}
       .rchip b{color:#0f172a;font-weight:600;}
       .rchip .ar{color:#cbd5e1;}
+      .mono{font-family:ui-monospace,"SFMono-Regular","Cascadia Code","Courier New",monospace;
+            color:#475569;font-size:14px;}
+      /* Configurations table row separators + icon-only edit/delete buttons */
+      .st-key-cfgtable [data-testid="stHorizontalBlock"]{
+        border-bottom:1px solid #eef0f2; padding-bottom:8px;}
+      [class*="st-key-cfg_edit"] button,[class*="st-key-cfg_del"] button{
+        background:transparent !important; border:none !important; box-shadow:none !important;
+        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
+      [class*="st-key-cfg_edit"] button:hover{color:#2563eb !important;}
+      [class*="st-key-cfg_del"] button{color:#f87171 !important;}
+      [class*="st-key-cfg_del"] button:hover{color:#dc2626 !important;}
+      .st-key-belowcard,.st-key-abovecard{background:#f8fafc !important;}
       .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
       .dash-sub{font-size:14px;color:#64748b;margin:4px 0 0;}
       /* Force inner padding on the control bar so labels clear the border
@@ -469,64 +481,83 @@ def _render_statistics(s):
 
 
 def page_configurations():
-    st.header("Configurations")
-    st.caption("Define test parameters and their tolerance limits. These are shared "
-               "across the app and applied on the Dashboard.")
+    st.markdown(
+        "<div class='dash-title'>Configurations</div>"
+        "<div class='dash-sub'>Define test parameters and their tolerance limits — "
+        "shared across the lab and applied on the Dashboard.</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     params = config_store.load_params()
 
-    if params:
-        rows = [{
-            "Parameter": name, "Unit": p.get("unit", ""), "Threshold": p["threshold"],
-            "Below": f"{p['val_below']:g} {p['type_below'].split()[0]}",
-            "Above": f"{p['val_above']:g} {p['type_above'].split()[0]}",
-        } for name, p in params.items()]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
-    else:
-        st.info("No parameters yet. Add one below.")
+    COLS = [2, 1.3, 1.1, 1.4, 1.4, 0.45, 0.45]
 
-    st.divider()
-    st.markdown("**Add or edit a parameter**")
-    existing = ["<new>"] + list(params.keys())
-    pick = st.selectbox("Edit existing (or add new)", existing)
-    preset = params.get(pick, {}) if pick != "<new>" else {}
+    # ---- Parameters table ----
+    with st.container(border=True, key="cfgtable"):
+        head = st.columns(COLS)
+        for col, title in zip(head, ["Parameter", "Unit", "Threshold", "Below tol.", "Above tol.", "", ""]):
+            col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
+        if not params:
+            st.caption("No parameters yet — add one below.")
+        for name, p in params.items():
+            r = st.columns(COLS, vertical_alignment="center")
+            r[0].markdown(f"<div style='font-weight:600;color:#0f172a;'>{name}</div>", unsafe_allow_html=True)
+            r[1].markdown(f"<span class='mono'>{p.get('unit', '')}</span>", unsafe_allow_html=True)
+            r[2].markdown(f"<span class='mono'>{p['threshold']:g}</span>", unsafe_allow_html=True)
+            r[3].markdown(f"<span class='mono'>{_tol_desc(p['val_below'], p['type_below'])[0]}</span>", unsafe_allow_html=True)
+            r[4].markdown(f"<span class='mono'>{_tol_desc(p['val_above'], p['type_above'])[0]}</span>", unsafe_allow_html=True)
+            if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
+                st.session_state["cfg_edit"] = name
+                st.rerun()
+            if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
+                config_store.delete_param(params, name)
+                if st.session_state.get("cfg_edit") == name:
+                    st.session_state.pop("cfg_edit", None)
+                st.rerun()
 
-    with st.form("param_form"):
-        c = st.columns(2)
-        name = c[0].text_input("Parameter name", value="" if pick == "<new>" else pick)
-        unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""))
-        threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
-                                    step=0.1, format="%.4f")
-        c2 = st.columns(2)
-        val_below = c2[0].number_input("Tolerance below threshold",
-                                       value=float(preset.get("val_below", 0.15)), step=0.01, format="%.4f")
-        type_below = c2[1].selectbox("Type (below)", TOL_OPTIONS,
-                                     index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])))
-        c3 = st.columns(2)
-        val_above = c3[0].number_input("Tolerance above threshold",
-                                       value=float(preset.get("val_above", 15.0)), step=0.5, format="%.4f")
-        type_above = c3[1].selectbox("Type (above)", TOL_OPTIONS,
-                                     index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])))
-        if st.form_submit_button("Save parameter", type="primary"):
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ---- Add / edit form ----
+    editing = st.session_state.get("cfg_edit")
+    preset = params.get(editing, {}) if editing else {}
+    tb_idx = TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0]))
+    ta_idx = TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1]))
+    with st.container(border=True, key="cfgform"):
+        st.markdown("**Add or edit a parameter**")
+        st.caption("Editable by any signed-in user.")
+        with st.form("param_form"):
+            c = st.columns(2)
+            name = c[0].text_input("Parameter name", value=editing or "", placeholder="e.g. Creatinine")
+            unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""), placeholder="e.g. mg/dL")
+            threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
+                                        step=0.1, format="%.4f")
+            gcols = st.columns(2)
+            with gcols[0], st.container(border=True, key="belowcard"):
+                st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
+                bc = st.columns(2)
+                val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
+                                               step=0.01, format="%.4f")
+                type_below = bc[1].selectbox("Type", TOL_OPTIONS, index=tb_idx,
+                                             format_func=lambda t: t.split()[0])
+            with gcols[1], st.container(border=True, key="abovecard"):
+                st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
+                ac = st.columns(2)
+                val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
+                                               step=0.5, format="%.4f")
+                type_above = ac[1].selectbox("Type", TOL_OPTIONS, index=ta_idx,
+                                             format_func=lambda t: t.split()[0])
+            saved = st.form_submit_button("Save parameter", type="primary")
+        if saved:
             ok, msg = config_store.upsert_param(
                 params, name, unit=unit, threshold=threshold,
                 val_below=val_below, type_below=type_below,
                 val_above=val_above, type_above=type_above)
             if ok:
+                st.session_state.pop("cfg_edit", None)
                 st.success(msg)
                 st.rerun()
             else:
                 st.error(msg)
-
-    if params:
-        st.divider()
-        st.markdown("**Delete a parameter**")
-        with st.form("param_delete"):
-            d_name = st.selectbox("Parameter", list(params.keys()), key="del_param")
-            if st.form_submit_button("Delete parameter"):
-                ok, msg = config_store.delete_param(params, d_name)
-                (st.success if ok else st.error)(msg)
-                if ok:
-                    st.rerun()
 
 
 def page_account():
