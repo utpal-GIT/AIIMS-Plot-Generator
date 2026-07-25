@@ -92,12 +92,17 @@ st.markdown(
       /* Sidebar: no scrollbars */
       [data-testid="stSidebarContent"]{overflow:hidden !important;}
       /* Sidebar bottom section pinned to the bottom (logout + user card) */
-      .st-key-sbbottom{position:absolute; bottom:1.75rem; left:0.75rem; right:0.75rem;}
-      .st-key-sbbottom .stButton button{background:transparent !important;
-        border:none !important; box-shadow:none !important;
-        justify-content:flex-start !important; color:#475569 !important;
-        font-weight:500 !important; padding-left:26px !important;}
-      .st-key-sbbottom .stButton button:hover{background:#f1f5f9 !important; color:#0f172a !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom{
+        position:absolute; bottom:1.75rem; left:0.75rem; right:0.75rem;}
+      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button{
+        width:100% !important; display:flex !important; align-items:center !important;
+        justify-content:flex-start !important; text-align:left !important;
+        background:transparent !important; border:none !important; box-shadow:none !important;
+        color:#475569 !important; font-weight:500 !important; padding-left:26px !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button p{
+        text-align:left !important;}
+      section[data-testid="stSidebar"] .st-key-sbbottom .stButton button:hover{
+        background:#f1f5f9 !important; color:#0f172a !important;}
     </style>
     """,
     unsafe_allow_html=True,
