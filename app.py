@@ -576,8 +576,8 @@ def page_configurations():
 
 
 def page_account():
-    outer = st.columns([1, 2.4, 1])
-    with outer[1]:
+    outer = st.columns([2.4, 2])
+    with outer[0]:
         st.markdown(
             "<div class='dash-title'>Account</div>"
             "<div class='dash-sub'>Your profile and password.</div>",
