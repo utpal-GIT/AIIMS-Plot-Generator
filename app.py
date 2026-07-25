@@ -103,6 +103,11 @@ st.markdown(
       /* Force inner padding on the control bar so labels clear the border
          (robust across Streamlit versions via the stable st-key class) */
       .st-key-ctrlbar{padding:16px 18px !important;}
+      /* Account cards: force symmetric inner padding so content sits
+         centered within the bordered box (deployed builds otherwise
+         render little/asymmetric padding) */
+      .st-key-acctprofile,.st-key-acctedit,.st-key-acctpw{
+        padding:18px 22px !important;}
       /* Vertical dividers: between parameter|tolerance and tolerance|generate */
       .st-key-ctrlbar [data-testid="stHorizontalBlock"] > div:nth-child(n+2){
         border-left:1px solid #e5e7eb; padding-left:1.4rem; margin-left:0.4rem;}
