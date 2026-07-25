@@ -89,12 +89,14 @@ st.markdown(
       /* White dropdown to match the control-bar design */
       .st-key-ctrlbar [data-baseweb="select"] > div{
         background-color:#ffffff !important; border:1px solid #d1d5db !important;}
+      /* Sidebar: no scrollbars */
+      [data-testid="stSidebarContent"]{overflow:hidden !important;}
       /* Sidebar bottom section pinned to the bottom (logout + user card) */
-      .st-key-sbbottom{position:absolute; bottom:0.75rem; left:1rem; right:1rem;}
+      .st-key-sbbottom{position:absolute; bottom:1.25rem; left:0.75rem; right:0.75rem;}
       .st-key-sbbottom .stButton button{background:transparent !important;
         border:none !important; box-shadow:none !important;
         justify-content:flex-start !important; color:#475569 !important;
-        font-weight:500 !important; padding-left:6px !important;}
+        font-weight:500 !important; padding-left:12px !important;}
       .st-key-sbbottom .stButton button:hover{background:#f1f5f9 !important; color:#0f172a !important;}
     </style>
     """,
