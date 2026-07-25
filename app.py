@@ -482,17 +482,62 @@ def _render_statistics(s):
     )
 
 
-def page_configurations():
-    st.markdown(
-        "<div class='dash-title'>Configurations</div>"
-        "<div class='dash-sub'>Define test parameters and their tolerance limits — "
-        "shared across the lab and applied on the Dashboard.</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-    params = config_store.load_params()
+@st.dialog("Add or edit a parameter", width="large")
+def _param_dialog(params, editing):
+    preset = params.get(editing, {}) if editing else {}
+    st.caption("Editable by any signed-in user.")
+    with st.form("param_dialog_form"):
+        c = st.columns(2)
+        name = c[0].text_input("Parameter name", value=editing or "", placeholder="e.g. Creatinine")
+        unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""), placeholder="e.g. mg/dL")
+        threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
+                                    step=0.1, format="%.4f")
+        g = st.columns(2)
+        with g[0], st.container(border=True, key="belowcard"):
+            st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
+            bc = st.columns(2)
+            val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
+                                           step=0.01, format="%.4f")
+            type_below = bc[1].selectbox("Type", TOL_OPTIONS,
+                                         index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
+                                         format_func=lambda t: t.split()[0])
+        with g[1], st.container(border=True, key="abovecard"):
+            st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
+            ac = st.columns(2)
+            val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
+                                           step=0.5, format="%.4f")
+            type_above = ac[1].selectbox("Type", TOL_OPTIONS,
+                                         index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
+                                         format_func=lambda t: t.split()[0])
+        saved = st.form_submit_button("Save parameter", type="primary", use_container_width=True)
+    if saved:
+        ok, msg = config_store.upsert_param(
+            params, name, unit=unit, threshold=threshold,
+            val_below=val_below, type_below=type_below,
+            val_above=val_above, type_above=type_above)
+        if ok:
+            st.rerun()
+        else:
+            st.error(msg)
 
+
+def page_configurations():
+    hc = st.columns([5, 1.6], vertical_alignment="center")
+    with hc[0]:
+        st.markdown(
+            "<div class='dash-title'>Configurations</div>"
+            "<div class='dash-sub'>Define test parameters and their tolerance limits — "
+            "shared across the lab and applied on the Dashboard.</div>",
+            unsafe_allow_html=True,
+        )
+    with hc[1]:
+        add_clicked = st.button("Add parameter", icon=":material/add:", type="primary",
+                                use_container_width=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    params = config_store.load_params()
     COLS = [2, 1.3, 1.1, 1.4, 1.4, 0.45, 0.45]
+    edit_target = None
 
     # ---- Parameters table ----
     with st.container(border=True, key="cfgtable"):
@@ -500,7 +545,7 @@ def page_configurations():
         for col, title in zip(head, ["Parameter", "Unit", "Threshold", "Below tol.", "Above tol.", "", ""]):
             col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
         if not params:
-            st.caption("No parameters yet — add one below.")
+            st.caption('No parameters yet — click "Add parameter".')
         for name, p in params.items():
             r = st.columns(COLS, vertical_alignment="center")
             r[0].markdown(f"<div style='font-weight:600;color:#0f172a;'>{name}</div>", unsafe_allow_html=True)
@@ -509,57 +554,16 @@ def page_configurations():
             r[3].markdown(f"<span class='mono'>{_tol_desc(p['val_below'], p['type_below'])[0]}</span>", unsafe_allow_html=True)
             r[4].markdown(f"<span class='mono'>{_tol_desc(p['val_above'], p['type_above'])[0]}</span>", unsafe_allow_html=True)
             if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
-                st.session_state["cfg_edit"] = name
-                st.rerun()
+                edit_target = name
             if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
                 config_store.delete_param(params, name)
-                if st.session_state.get("cfg_edit") == name:
-                    st.session_state.pop("cfg_edit", None)
                 st.rerun()
 
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-
-    # ---- Add / edit form ----
-    editing = st.session_state.get("cfg_edit")
-    preset = params.get(editing, {}) if editing else {}
-    tb_idx = TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0]))
-    ta_idx = TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1]))
-    with st.container(border=True, key="cfgform"):
-        st.markdown("**Add or edit a parameter**")
-        st.caption("Editable by any signed-in user.")
-        with st.form("param_form"):
-            c = st.columns(2)
-            name = c[0].text_input("Parameter name", value=editing or "", placeholder="e.g. Creatinine")
-            unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""), placeholder="e.g. mg/dL")
-            threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
-                                        step=0.1, format="%.4f")
-            gcols = st.columns(2)
-            with gcols[0], st.container(border=True, key="belowcard"):
-                st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
-                bc = st.columns(2)
-                val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
-                                               step=0.01, format="%.4f")
-                type_below = bc[1].selectbox("Type", TOL_OPTIONS, index=tb_idx,
-                                             format_func=lambda t: t.split()[0])
-            with gcols[1], st.container(border=True, key="abovecard"):
-                st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
-                ac = st.columns(2)
-                val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
-                                               step=0.5, format="%.4f")
-                type_above = ac[1].selectbox("Type", TOL_OPTIONS, index=ta_idx,
-                                             format_func=lambda t: t.split()[0])
-            saved = st.form_submit_button("Save parameter", type="primary")
-        if saved:
-            ok, msg = config_store.upsert_param(
-                params, name, unit=unit, threshold=threshold,
-                val_below=val_below, type_below=type_below,
-                val_above=val_above, type_above=type_above)
-            if ok:
-                st.session_state.pop("cfg_edit", None)
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
+    # ---- Open the modal for add / edit ----
+    if add_clicked:
+        _param_dialog(params, None)
+    elif edit_target:
+        _param_dialog(params, edit_target)
 
 
 def page_account():
