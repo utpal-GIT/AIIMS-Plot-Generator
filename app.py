@@ -708,20 +708,22 @@ def page_account():
         # ---- Profile card (avatar + info, vertically centered) ----
         with st.container(border=True, key="acctprofile"):
             st.markdown(
-                "<div style='display:flex; align-items:center; justify-content:space-between; "
-                "gap:16px; min-height:44px;'>"
-                "<div style='display:flex; align-items:center; gap:12px; height:44px;'>"
-                f"<div style='width:44px; height:44px; border-radius:50%; background:#16a34a; "
-                f"color:#fff; display:flex; align-items:center; justify-content:center; "
-                f"font-weight:600; font-size:16px; flex:none;'>{_initials(name)}</div>"
-                "<div style='display:flex; flex-direction:column; justify-content:center; "
-                "height:44px; line-height:1.25;'>"
-                f"<div style='font-size:16px; font-weight:600; color:#0f172a; margin:0;'>{name}</div>"
-                f"<div class='mono' style='color:#94a3b8; font-size:12px; margin:0;'>{current_username}</div>"
-                "</div></div>"
+                "<div style='display:flex; align-items:flex-start; "
+                "justify-content:space-between; gap:16px;'>"
+                "<div style='display:grid; grid-template-columns:44px auto; "
+                "column-gap:12px; align-items:center;'>"
+                f"<div style='grid-row:1; width:44px; height:44px; border-radius:50%; "
+                f"background:#16a34a; color:#fff; display:flex; align-items:center; "
+                f"justify-content:center; font-weight:600; font-size:16px;'>{_initials(name)}</div>"
+                f"<div style='grid-row:1; grid-column:2; font-size:16px; font-weight:600; "
+                f"color:#0f172a; line-height:1.2;'>{name}</div>"
+                f"<div class='mono' style='grid-row:2; grid-column:2; font-size:12px; "
+                f"color:#94a3b8; line-height:1.2; margin-top:1px;'>{current_username}</div>"
+                "</div>"
+                "<div style='height:44px; display:flex; align-items:center;'>"
                 "<span style='background:#dcfce7; color:#16a34a; font-weight:600; font-size:12px; "
                 f"padding:4px 11px; border-radius:999px; white-space:nowrap;'>{role_label}</span>"
-                "</div>",
+                "</div></div>",
                 unsafe_allow_html=True,
             )
 
