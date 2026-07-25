@@ -89,6 +89,13 @@ st.markdown(
       /* White dropdown to match the control-bar design */
       .st-key-ctrlbar [data-baseweb="select"] > div{
         background-color:#ffffff !important; border:1px solid #d1d5db !important;}
+      /* Sidebar bottom section pinned to the bottom (logout + user card) */
+      .st-key-sbbottom{position:absolute; bottom:0.75rem; left:1rem; right:1rem;}
+      .st-key-sbbottom .stButton button{background:transparent !important;
+        border:none !important; box-shadow:none !important;
+        justify-content:flex-start !important; color:#475569 !important;
+        font-weight:500 !important; padding-left:6px !important;}
+      .st-key-sbbottom .stButton button:hover{background:#f1f5f9 !important; color:#0f172a !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -99,6 +106,15 @@ st.markdown(
 def _logo_data_uri(path):
     with open(path, "rb") as f:
         return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+
+
+def _initials(name):
+    titles = {"dr", "mr", "mrs", "ms", "prof", "miss"}
+    parts = [p.strip(".") for p in (name or "").split() if p.strip(".").lower() not in titles]
+    if not parts:
+        parts = (name or "?").split()
+    letters = [p[0] for p in parts[:2] if p]
+    return ("".join(letters).upper() or "?")
 
 
 def _auth_brand(subtitle, show_name=True):
@@ -536,21 +552,23 @@ def page_settings():
 # Sidebar navigation + routing
 # ==========================================================================
 with st.sidebar:
-    logo_img = (f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:34px; height:34px; "
-                f"border-radius:6px;'>") if os.path.exists(LOGO_PATH) else ""
+    logo_img = (f"<img src='{_logo_data_uri(LOGO_PATH)}' style='width:38px; height:38px; "
+                f"border-radius:8px;'>") if os.path.exists(LOGO_PATH) else ""
     st.markdown(
-        f"<div style='display:flex; align-items:center; gap:10px; padding:2px 2px 16px;'>"
+        f"<div style='display:flex; align-items:center; gap:11px; padding:2px 2px 18px;'>"
         f"{logo_img}"
-        f"<span style='font-size:19px; font-weight:600; color:#1f2937;'>AIIMS Plotter</span>"
-        f"</div>"
+        f"<div style='line-height:1.15;'>"
+        f"<div style='font-size:19px; font-weight:600; color:#1f2937;'>AIIMS Plotter</div>"
+        f"<div style='font-size:12px; color:#94a3b8;'>Primary Health Tech</div>"
+        f"</div></div>"
         f"<div style='font-size:11px; font-weight:600; color:#94a3b8; letter-spacing:.6px; "
-        f"padding:0 2px 6px;'>MAIN MENU</div>",
+        f"padding:0 2px 6px;'>MENU</div>",
         unsafe_allow_html=True,
     )
     selected = option_menu(
         menu_title=None,
-        options=["Dashboard", "Configurations", "Account", "Settings", "Logout"],
-        icons=["speedometer2", "sliders", "person", "gear", "box-arrow-right"],
+        options=["Dashboard", "Configurations", "Account", "Settings"],
+        icons=["speedometer2", "sliders", "person", "gear"],
         default_index=0,
         key="nav",
         styles={
@@ -559,14 +577,34 @@ with st.sidebar:
             "nav-link-selected": {"background-color": "#2563eb"},
         },
     )
-    st.caption(f"{st.session_state.get('name')} · {auth.ROLE_LABELS.get(current_role, current_role)}")
 
-if selected == "Logout":
+    # Bottom section (pinned to the sidebar bottom): logout + user card
+    with st.container(key="sbbottom"):
+        logout_clicked = st.button("Logout", icon=":material/logout:",
+                                   use_container_width=True, key="logout_btn")
+        st.markdown("<div style='border-top:1px solid #e5e7eb; margin:8px 0 10px;'></div>",
+                    unsafe_allow_html=True)
+        initials = _initials(st.session_state.get("name", ""))
+        st.markdown(
+            "<div style='display:flex; align-items:center; gap:10px;'>"
+            f"<div style='width:38px; height:38px; border-radius:50%; background:#dcfce7; "
+            f"color:#16a34a; display:flex; align-items:center; justify-content:center; "
+            f"font-weight:600; font-size:13px; flex:none;'>{initials}</div>"
+            "<div style='line-height:1.2; min-width:0;'>"
+            f"<div style='font-size:14px; font-weight:600; color:#1f2937; white-space:nowrap; "
+            f"overflow:hidden; text-overflow:ellipsis;'>{st.session_state.get('name')}</div>"
+            f"<div style='font-size:12px; color:#94a3b8;'>{auth.ROLE_LABELS.get(current_role, current_role)}</div>"
+            "</div></div>",
+            unsafe_allow_html=True,
+        )
+
+if logout_clicked:
     authenticator.logout(location="unrendered")
     for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
         st.session_state.pop(k, None)
     st.rerun()
-elif selected == "Dashboard":
+
+if selected == "Dashboard":
     page_dashboard()
 elif selected == "Configurations":
     page_configurations()
