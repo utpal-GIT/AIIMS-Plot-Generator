@@ -293,6 +293,35 @@ def set_role(config, username, new_role, actor_role=None):
     return True, f"'{username}' is now {ROLE_LABELS[new_role]}."
 
 
+def change_display_name(config, username, new_name):
+    """Update a user's display name."""
+    users = config["credentials"]["usernames"]
+    if username not in users:
+        return False, "User not found."
+    if not (new_name or "").strip():
+        return False, "Name is required."
+    users[username]["name"] = new_name.strip()
+    save_config(config)
+    return True, "Name updated."
+
+
+def change_username(config, old_username, new_username):
+    """Rename a user's login username (the account key)."""
+    users = config["credentials"]["usernames"]
+    new_username = (new_username or "").strip()
+    if old_username not in users:
+        return False, "User not found."
+    if new_username == old_username:
+        return False, "That is already your username."
+    if not USERNAME_RE.match(new_username):
+        return False, "Username must be 3+ characters (letters, numbers, . _ - only)."
+    if new_username in users:
+        return False, f"Username '{new_username}' already exists."
+    users[new_username] = users.pop(old_username)
+    save_config(config)
+    return True, f"Username changed to '{new_username}'."
+
+
 def change_own_password(config, username, old_password, new_password):
     """Let a logged-in user change their own password (verifies the old one)."""
     users = config["credentials"]["usernames"]
