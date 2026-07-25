@@ -715,8 +715,9 @@ def page_account():
                 f"<div style='grid-row:1; width:44px; height:44px; border-radius:50%; "
                 f"background:#16a34a; color:#fff; display:flex; align-items:center; "
                 f"justify-content:center; font-weight:600; font-size:16px;'>{_initials(name)}</div>"
-                f"<div style='grid-row:1; grid-column:2; font-size:16px; font-weight:600; "
-                f"color:#0f172a; line-height:1.2;'>{name}</div>"
+                f"<div style='grid-row:1; grid-column:2; height:44px; display:flex; "
+                f"align-items:center; font-size:16px; font-weight:600; "
+                f"color:#0f172a;'>{name}</div>"
                 f"<div class='mono' style='grid-row:2; grid-column:2; font-size:12px; "
                 f"color:#94a3b8; line-height:1.2; margin-top:1px;'>{current_username}</div>"
                 "</div>"
@@ -830,7 +831,8 @@ def page_settings():
                 f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
                 f"color:{fg}; display:flex; align-items:center; justify-content:center; "
                 f"font-weight:600; font-size:12px; flex:none;'>{_initials(u['name'])}</div>"
-                f"<div style='font-weight:600; color:#0f172a;'>{u['name']}</div></div>",
+                f"<div style='height:34px; display:flex; align-items:center; font-weight:600; "
+                f"color:#0f172a;'>{u['name']}</div></div>",
                 unsafe_allow_html=True,
             )
             r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
