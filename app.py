@@ -35,15 +35,21 @@ def _blank_data(n=6):
 st.markdown(
     """
     <style>
-      /* Compact dashboard: tighter page padding, gaps, dividers and headings */
-      .block-container{padding-top:1.3rem;padding-bottom:1rem;max-width:1500px;}
-      [data-testid="stVerticalBlock"]{gap:0.5rem;}
-      [data-testid="stHeading"]{margin-bottom:0.15rem;}
-      h1{font-size:1.7rem !important;margin-bottom:0.2rem !important;}
-      h2{font-size:1.25rem !important;margin:0.1rem 0 0.2rem !important;}
-      h3{font-size:1.05rem !important;margin:0.1rem 0 0.2rem !important;}
-      hr{margin:0.45rem 0 !important;}
+      /* Balanced spacing + smaller, consistent font sizes */
+      .block-container{padding-top:1.8rem; padding-bottom:2rem; max-width:1360px;}
+      [data-testid="stVerticalBlock"]{gap:0.7rem;}
+      [data-testid="stHeading"]{margin-bottom:0.2rem;}
+      h1{font-size:1.5rem !important; margin-bottom:0.2rem !important;}
+      h2{font-size:1.1rem !important; margin:0.1rem 0 0.2rem !important;}
+      h3{font-size:0.98rem !important; margin:0.1rem 0 0.2rem !important;}
+      hr{margin:0.5rem 0 !important;}
       [data-testid="stExpander"]{margin-top:0.1rem;}
+      /* smaller body text, labels, and input text app-wide */
+      [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li{font-size:14px;}
+      [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label{font-size:13px;}
+      .stTextInput input, .stNumberInput input, .stTextArea textarea,
+      .stDateInput input, [data-baseweb="select"]{font-size:14px !important;}
+      [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p{font-size:12.5px;}
       .sc{background:#ffffff;border:1px solid #eef0f2;border-radius:10px;padding:9px 12px;}
       .scl{font-size:11px;font-weight:600;letter-spacing:.5px;color:#94a3b8;
            text-transform:uppercase;margin-bottom:3px;}
@@ -92,8 +98,8 @@ st.markdown(
       [class*="st-key-cfg_del"] button{color:#f87171 !important;}
       [class*="st-key-cfg_del"] button:hover{color:#dc2626 !important;}
       .st-key-belowcard,.st-key-abovecard{background:#f8fafc !important;}
-      .dash-title{font-size:1.9rem;font-weight:600;color:#0f172a;line-height:1.05;}
-      .dash-sub{font-size:14px;color:#64748b;margin:4px 0 0;}
+      .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
+      .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
       /* Force inner padding on the control bar so labels clear the border
          (robust across Streamlit versions via the stable st-key class) */
       .st-key-ctrlbar{padding:16px 18px !important;}
