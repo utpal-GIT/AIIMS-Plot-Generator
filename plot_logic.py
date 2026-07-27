@@ -292,9 +292,14 @@ def generate_plot(
     ax.grid(True, color="#e9ecef", lw=0.8)
     ax.tick_params(colors="#666666", labelsize=10, length=0)
 
-    ax.set_title(title, fontsize=15, fontweight="semibold", color="#1f2937", loc="left", pad=12)
-    ax.set_xlabel(x_label, fontsize=11, color="#374151")
-    ax.set_ylabel(y_label, fontsize=11, color="#374151")
+    ax.set_title(title, fontsize=15, fontweight="semibold", color="#1f2937", loc="left", pad=22)
+    ax.set_xlabel(x_label, fontsize=11, color="#374151", labelpad=12)
+    ax.set_ylabel(y_label, fontsize=11, color="#374151", labelpad=12)
+
+    # Watermark — bottom-left corner of the plot area.
+    ax.text(0.006, 0.015, "Datta - Srivastav Plot", transform=ax.transAxes,
+            fontsize=9, color="#9ca3af", style="italic", alpha=0.75,
+            ha="left", va="bottom", zorder=1)
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
               frameon=False, fontsize=8.5)
 
