@@ -126,7 +126,7 @@ st.markdown(
       /* Profile card is a single row — tighten it and kill any stray
          top/bottom margins on the markdown so the avatar row is
          perfectly centered in the box */
-      .st-key-acctprofile{padding-top:14px !important; padding-bottom:14px !important;}
+      .st-key-acctprofile{padding-top:18px !important; padding-bottom:18px !important;}
       .st-key-acctprofile [data-testid="stElementContainer"],
       .st-key-acctprofile [data-testid="stMarkdown"],
       .st-key-acctprofile [data-testid="stMarkdownContainer"]{
@@ -710,26 +710,22 @@ def page_account():
         name = st.session_state.get("name", "")
         role_label = auth.ROLE_LABELS.get(current_role, current_role)
 
-        # ---- Profile card (avatar + info, vertically centered) ----
+        # ---- Profile card (larger avatar centered against name+username block) ----
         with st.container(border=True, key="acctprofile"):
             st.markdown(
-                "<div style='display:flex; align-items:flex-start; "
+                "<div style='display:flex; align-items:center; "
                 "justify-content:space-between; gap:16px;'>"
-                "<div style='display:grid; grid-template-columns:44px auto; "
-                "column-gap:12px; align-items:center;'>"
-                f"<div style='grid-row:1; width:44px; height:44px; border-radius:50%; "
-                f"background:#16a34a; color:#fff; display:flex; align-items:center; "
-                f"justify-content:center; font-weight:600; font-size:16px;'>{_initials(name)}</div>"
-                f"<div style='grid-row:1; grid-column:2; height:44px; display:flex; "
-                f"align-items:center; font-size:16px; font-weight:600; "
-                f"color:#0f172a;'>{name}</div>"
-                f"<div class='mono' style='grid-row:2; grid-column:2; font-size:12px; "
-                f"color:#94a3b8; line-height:1.2; margin-top:1px;'>{current_username}</div>"
-                "</div>"
-                "<div style='height:44px; display:flex; align-items:center;'>"
-                "<span style='background:#dcfce7; color:#16a34a; font-weight:600; font-size:12px; "
-                f"padding:4px 11px; border-radius:999px; white-space:nowrap;'>{role_label}</span>"
-                "</div></div>",
+                "<div style='display:flex; align-items:center; gap:16px;'>"
+                f"<div style='width:56px; height:56px; border-radius:50%; background:#16a34a; "
+                f"color:#fff; display:flex; align-items:center; justify-content:center; "
+                f"font-weight:600; font-size:20px; flex:none;'>{_initials(name)}</div>"
+                "<div style='line-height:1.35;'>"
+                f"<div style='font-size:19px; font-weight:600; color:#0f172a;'>{name}</div>"
+                f"<div class='mono' style='color:#94a3b8; font-size:13px;'>{current_username}</div>"
+                "</div></div>"
+                "<span style='background:#dcfce7; color:#16a34a; font-weight:600; font-size:13px; "
+                f"padding:5px 14px; border-radius:999px; white-space:nowrap;'>{role_label}</span>"
+                "</div>",
                 unsafe_allow_html=True,
             )
 
