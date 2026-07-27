@@ -375,7 +375,7 @@ def page_dashboard():
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
                                   help="Average = (Reference + Measured) / 2 (Bland–Altman).")
         default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
-        title = oc[1].text_input("Plot title", value=f"Datta Srivastava Plot - {param_name}")
+        title = oc[1].text_input("Plot title", value=f"Datta - Srivastava Plot - {param_name}")
         x_label = oc[2].text_input("X-axis label", value=default_x)
         y_label = oc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
 
