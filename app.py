@@ -378,8 +378,13 @@ def page_dashboard():
 
     plot_box = st.container()
 
-    # --- Compute (after all inputs are defined) ---
-    if generate:
+    # --- Compute ---
+    # Generate on button click, and afterwards live-refresh whenever any plot
+    # customization (axis basis, title, labels) changes and Enter is pressed.
+    current_opts = (x_basis, title, x_label, y_label)
+    opts_changed = (st.session_state.get("result") is not None
+                    and st.session_state.get("last_opts") != current_opts)
+    if generate or opts_changed:
         try:
             result = generate_plot(
                 edited_df, x_basis=x_basis,
@@ -400,7 +405,7 @@ def page_dashboard():
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
-        st.rerun()  # refresh so the header "Export report" button picks up the new PDF
+        st.session_state["last_opts"] = current_opts
 
     result = st.session_state.get("result")
     error = st.session_state.get("error")
