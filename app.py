@@ -437,8 +437,16 @@ def page_dashboard():
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)
-            st.download_button("Download plot (PNG)", png, file_name="method_comparison.png",
-                               mime="image/png")
+            bc = st.columns([1, 1, 2])
+            bc[0].download_button("Download plot (PNG)", png, file_name="method_comparison.png",
+                                  mime="image/png", icon=":material/image:",
+                                  use_container_width=True)
+            pdf = st.session_state.get("pdf_bytes")
+            bc[1].download_button("Export report", data=pdf if pdf else b"",
+                                  file_name=st.session_state.get("pdf_name", "report.pdf"),
+                                  mime="application/pdf", disabled=pdf is None,
+                                  icon=":material/description:", use_container_width=True,
+                                  help=None if pdf else "Report unavailable — regenerate the plot")
 
 
 def _tol_desc(value, tol_type):
