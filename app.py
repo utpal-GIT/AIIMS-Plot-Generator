@@ -99,16 +99,12 @@ st.markdown(
       [class*="st-key-cfg_del"] button:hover{color:#dc2626 !important;}
       /* Settings users table row separators + icon-only action buttons */
       .st-key-usertable [data-testid="stHorizontalBlock"]{
-        border-bottom:1px solid #eef0f2; padding-bottom:10px;}
-      .st-key-usertable [data-testid="stHorizontalBlock"]:has(.scl){padding-bottom:16px;}
+        border-bottom:1px solid #eef0f2; padding-top:9px; padding-bottom:9px;}
+      .st-key-usertable [data-testid="stHorizontalBlock"]:has(.scl){
+        padding-top:0; padding-bottom:16px;}
       [class*="st-key-sett_reset"] button,[class*="st-key-sett_del"] button{
         background:transparent !important; border:none !important; box-shadow:none !important;
-        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;
-        /* In this Streamlit build the icon buttons sit ~6px above the row's
-           centre while the content group sits ~2px below it (measured on a
-           live instance). Push the buttons down to the band centre; the
-           content row is pulled up 3px inline. */
-        transform:translateY(7px);}
+        min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
       [class*="st-key-sett_reset"] button:hover{color:#2563eb !important;}
       [class*="st-key-sett_del"] button{color:#f87171 !important;}
       [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
@@ -815,44 +811,37 @@ def page_settings():
                                 use_container_width=True)
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Content is one column (avatar/name/username/role rendered as a single
-    # flex row so they share one baseline), plus two narrow action columns.
-    COLS = [6, 0.5, 0.5]
+    # Per-column layout; the avatar is an inline element so the name cell is
+    # p-wrapped like the value cells and everything shares one baseline.
+    COLS = [2.6, 2, 1.4, 0.5, 0.5]
     manage_target = None
     delete_target = None
 
     # ---- Users table ----
     with st.container(border=True, key="usertable"):
         head = st.columns(COLS)
-        head[0].markdown(
-            "<div style='display:flex;'>"
-            "<div style='flex:2.6;' class='scl'>Name</div>"
-            "<div style='flex:2;' class='scl'>Username</div>"
-            "<div style='flex:1.4;' class='scl'>Role</div></div>",
-            unsafe_allow_html=True,
-        )
+        for col, title in zip(head, ["Name", "Username", "Role", "", ""]):
+            col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
         for u in auth.list_users(config):
             r = st.columns(COLS, vertical_alignment="center")
             bg, fg = _avatar_color(u["username"])
             r[0].markdown(
-                "<div style='display:flex; align-items:center; transform:translateY(-3px);'>"
-                "<div style='flex:2.6; display:flex; align-items:center; gap:10px; min-width:0;'>"
-                f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
-                f"color:{fg}; display:flex; align-items:center; justify-content:center; "
-                f"font-weight:600; font-size:12px; flex:none;'>{_initials(u['name'])}</div>"
-                f"<div style='font-weight:600; color:#0f172a; overflow:hidden; "
-                f"text-overflow:ellipsis; white-space:nowrap;'>{u['name']}</div></div>"
-                f"<div style='flex:2;'><span class='mono'>{u['username']}</span></div>"
-                f"<div style='flex:1.4;'>{_role_badge(u['role'])}</div>"
-                "</div>",
+                f"<span style='display:inline-flex; vertical-align:middle; width:34px; "
+                f"height:34px; border-radius:50%; background:{bg}; color:{fg}; "
+                f"align-items:center; justify-content:center; font-weight:600; "
+                f"font-size:12px;'>{_initials(u['name'])}</span>"
+                f"<span style='vertical-align:middle; margin-left:10px; font-weight:600; "
+                f"color:#0f172a;'>{u['name']}</span>",
                 unsafe_allow_html=True,
             )
+            r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
+            r[2].markdown(_role_badge(u["role"]), unsafe_allow_html=True)
             if u["username"] in targets:
-                if r[1].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
+                if r[3].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
                                help="Reset password / role"):
                     manage_target = u
                 is_self = u["username"] == current_username
-                if r[2].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
+                if r[4].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
                                help=("You can't delete your own account" if is_self else "Delete"),
                                disabled=is_self):
                     delete_target = u
