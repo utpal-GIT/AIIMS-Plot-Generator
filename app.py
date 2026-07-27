@@ -546,7 +546,7 @@ def _param_dialog(params, editing):
     @st.dialog("Edit parameter" if editing else "Add parameter", width="large")
     def _dlg():
         preset = params.get(editing, {}) if editing else {}
-        st.caption("Editable by any signed-in user.")
+        st.caption("Shared across the lab and applied on the Dashboard.")
         # Mode selector is OUTSIDE the form so the fields update live.
         MODES = ["Threshold-based (below / above)", "Single tolerance (value / % bias)"]
         default_mode = 0 if (not editing or config_store.has_threshold(preset)) else 1
@@ -710,8 +710,11 @@ def page_configurations():
             unsafe_allow_html=True,
         )
     with hc[1]:
-        add_clicked = st.button("Add parameter", icon=":material/add:", type="primary",
-                                use_container_width=True)
+        if is_manager:
+            add_clicked = st.button("Add parameter", icon=":material/add:", type="primary",
+                                    use_container_width=True)
+        else:
+            add_clicked = False
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     params = config_store.load_params()
@@ -724,7 +727,8 @@ def page_configurations():
         for col, title in zip(head, ["Parameter", "Unit", "Threshold", "Below tol.", "Above tol.", "", ""]):
             col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
         if not params:
-            st.caption('No parameters yet — click "Add parameter".')
+            st.caption('No parameters yet — click "Add parameter".' if is_manager
+                       else "No parameters configured yet.")
         for name, p in params.items():
             r = st.columns(COLS, vertical_alignment="center")
             if config_store.has_threshold(p):
@@ -740,16 +744,17 @@ def page_configurations():
             r[2].markdown(f"<span class='mono'>{thr}</span>", unsafe_allow_html=True)
             r[3].markdown(f"<span class='mono'>{below}</span>", unsafe_allow_html=True)
             r[4].markdown(f"<span class='mono'>{above}</span>", unsafe_allow_html=True)
-            if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
-                edit_target = name
-            if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
-                config_store.delete_param(params, name)
-                st.rerun()
+            if is_manager:
+                if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
+                    edit_target = name
+                if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
+                    config_store.delete_param(params, name)
+                    st.rerun()
 
-    # ---- Open the modal for add / edit ----
-    if add_clicked:
+    # ---- Open the modal for add / edit (managers only) ----
+    if is_manager and add_clicked:
         _param_dialog(params, None)
-    elif edit_target:
+    elif is_manager and edit_target:
         _param_dialog(params, edit_target)
 
 
