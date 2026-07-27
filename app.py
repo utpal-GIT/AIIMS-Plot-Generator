@@ -272,6 +272,7 @@ def page_dashboard():
             mime="application/pdf", disabled=pdf is None,
             icon=":material/description:", use_container_width=True,
             help=None if pdf else "Generate a plot first",
+            key="dl_report_header",
         )
     st.markdown(
         "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
@@ -440,13 +441,14 @@ def page_dashboard():
             bc = st.columns([1, 1, 2])
             bc[0].download_button("Download plot (PNG)", png, file_name="method_comparison.png",
                                   mime="image/png", icon=":material/image:",
-                                  use_container_width=True)
+                                  use_container_width=True, key="dl_png")
             pdf = st.session_state.get("pdf_bytes")
             bc[1].download_button("Export report", data=pdf if pdf else b"",
                                   file_name=st.session_state.get("pdf_name", "report.pdf"),
                                   mime="application/pdf", disabled=pdf is None,
                                   icon=":material/description:", use_container_width=True,
-                                  help=None if pdf else "Report unavailable — regenerate the plot")
+                                  help=None if pdf else "Report unavailable — regenerate the plot",
+                                  key="dl_report_plot")
 
 
 def _tol_desc(value, tol_type):
