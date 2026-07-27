@@ -429,7 +429,8 @@ def page_dashboard():
         elif result is None:
             st.info("Enter data, then click **Generate plot** at the top.")
         else:
-            st.pyplot(result.fig, use_container_width=True)
+            with st.container(border=True, key="plotcard"):
+                st.pyplot(result.fig, use_container_width=True)
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)
