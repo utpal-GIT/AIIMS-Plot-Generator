@@ -679,7 +679,7 @@ def page_configurations():
             st.caption('No parameters yet — click "Add parameter".')
         for name, p in params.items():
             r = st.columns(COLS, vertical_alignment="center")
-            r[0].markdown(f"<div style='font-weight:600;color:#0f172a;'>{name}</div>", unsafe_allow_html=True)
+            r[0].markdown(f"<span style='font-weight:600;color:#0f172a;font-size:15px;'>{name}</span>", unsafe_allow_html=True)
             r[1].markdown(f"<span class='mono'>{p.get('unit', '')}</span>", unsafe_allow_html=True)
             r[2].markdown(f"<span class='mono'>{p['threshold']:g}</span>", unsafe_allow_html=True)
             r[3].markdown(f"<span class='mono'>{_tol_desc(p['val_below'], p['type_below'])[0]}</span>", unsafe_allow_html=True)
