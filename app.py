@@ -21,7 +21,7 @@ import config_store
 import report
 from plot_logic import generate_plot
 
-st.set_page_config(page_title="Datta - Srivastav Plotter", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Datta - Srivastava Plotter", page_icon="📊", layout="wide")
 
 TOL_OPTIONS = config_store.TOL_OPTIONS
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "primaryhealthtech_logo.jpg")
@@ -198,7 +198,7 @@ def _auth_brand(subtitle, show_name=True):
         logo = (f"<img src='{_logo_data_uri(LOGO_PATH)}' "
                 f"style='width:58px;height:58px;border-radius:12px;'>")
     name = ("<div style='font-size:27px;font-weight:700;color:#0f172a;margin-top:12px;'>"
-            "Datta - Srivastav Plotter</div>") if show_name else ""
+            "Datta - Srivastava Plotter</div>") if show_name else ""
     sub = (f"<div style='font-size:14px;color:#64748b;margin-top:6px;'>{subtitle}</div>"
            if subtitle else "")
     st.markdown(
@@ -375,7 +375,7 @@ def page_dashboard():
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
                                   help="Average = (Reference + Measured) / 2 (Bland–Altman).")
         default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
-        title = oc[1].text_input("Plot title", value=f"Datta Srivastav Plot - {param_name}")
+        title = oc[1].text_input("Plot title", value=f"Datta Srivastava Plot - {param_name}")
         x_label = oc[2].text_input("X-axis label", value=default_x)
         y_label = oc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
 
@@ -403,7 +403,7 @@ def page_dashboard():
                     logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
             except Exception:
                 st.session_state["pdf_bytes"] = None
-            st.session_state["pdf_name"] = f"Datta - Srivastav Report - {param_name}.pdf"
+            st.session_state["pdf_name"] = f"Datta - Srivastava Report - {param_name}.pdf"
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
@@ -436,7 +436,7 @@ def page_dashboard():
             png.seek(0)
             bc = st.columns([1, 1, 2])
             bc[0].download_button("Download plot (PNG)", png,
-                                  file_name=f"Datta - Srivastav Plot - {param_name}.png",
+                                  file_name=f"Datta - Srivastava Plot - {param_name}.png",
                                   mime="image/png", icon=":material/image:",
                                   use_container_width=True, key="dl_png")
             pdf = st.session_state.get("pdf_bytes")
@@ -930,7 +930,7 @@ with st.sidebar:
         f"<div style='display:flex; align-items:center; gap:11px; padding:2px 2px 18px;'>"
         f"{logo_img}"
         f"<div style='line-height:1.15;'>"
-        f"<div style='font-size:19px; font-weight:600; color:#1f2937;'>Datta - Srivastav Plotter</div>"
+        f"<div style='font-size:19px; font-weight:600; color:#1f2937;'>Datta - Srivastava Plotter</div>"
         f"<div style='font-size:12px; color:#94a3b8;'>Primary Health Tech</div>"
         f"</div></div>"
         f"<div style='font-size:11px; font-weight:600; color:#94a3b8; letter-spacing:.6px; "

@@ -297,7 +297,7 @@ def generate_plot(
     ax.set_ylabel(y_label, fontsize=11, color="#374151", labelpad=12)
 
     # Watermark — bottom-left corner of the plot area.
-    ax.text(0.006, 0.015, "Datta - Srivastav Plot", transform=ax.transAxes,
+    ax.text(0.006, 0.015, "Datta - Srivastava Plot", transform=ax.transAxes,
             fontsize=9, color="#9ca3af", style="italic", alpha=0.75,
             ha="left", va="bottom", zorder=1)
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
