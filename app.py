@@ -403,7 +403,7 @@ def page_dashboard():
                     logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
             except Exception:
                 st.session_state["pdf_bytes"] = None
-            st.session_state["pdf_name"] = f"{param_name}_report.pdf"
+            st.session_state["pdf_name"] = f"Datta - Srivastav Report - {param_name}.pdf"
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
@@ -434,7 +434,8 @@ def page_dashboard():
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)
             bc = st.columns([1, 1, 2])
-            bc[0].download_button("Download plot (PNG)", png, file_name="method_comparison.png",
+            bc[0].download_button("Download plot (PNG)", png,
+                                  file_name=f"Datta - Srivastav Plot - {param_name}.png",
                                   mime="image/png", icon=":material/image:",
                                   use_container_width=True, key="dl_png")
             pdf = st.session_state.get("pdf_bytes")
