@@ -287,14 +287,17 @@ def page_dashboard():
         p = params[param_name]
         with cc[1]:
             st.markdown(lbl.format("Tolerance limits"), unsafe_allow_html=True)
-            b_val, _ = _tol_desc(p["val_below"], p["type_below"])
-            a_val, _ = _tol_desc(p["val_above"], p["type_above"])
-            thr = f"{p['threshold']:g}"
+            if config_store.has_threshold(p):
+                b_val, _ = _tol_desc(p["val_below"], p["type_below"])
+                a_val, _ = _tol_desc(p["val_above"], p["type_above"])
+                thr = f"{p['threshold']:g}"
+                chips = (f"<span class='rchip'>X ≤ {thr} <span class='ar'>→</span> <b>{b_val}</b></span>"
+                         f"<span class='rchip'>X &gt; {thr} <span class='ar'>→</span> <b>{a_val}</b></span>")
+            else:
+                v, _ = _tol_desc(p["val"], p["type"])
+                chips = f"<span class='rchip'>All values <span class='ar'>→</span> <b>{v}</b></span>"
             st.markdown(
-                "<div style='display:flex;gap:8px;flex-wrap:wrap;'>"
-                f"<span class='rchip'>X ≤ {thr} <span class='ar'>→</span> <b>{b_val}</b></span>"
-                f"<span class='rchip'>X &gt; {thr} <span class='ar'>→</span> <b>{a_val}</b></span>"
-                "</div>",
+                f"<div style='display:flex;gap:8px;flex-wrap:wrap;'>{chips}</div>",
                 unsafe_allow_html=True,
             )
         with cc[2]:
@@ -388,9 +391,8 @@ def page_dashboard():
         try:
             result = generate_plot(
                 edited_df, x_basis=x_basis,
-                threshold=p["threshold"], val_below=p["val_below"], type_below=p["type_below"],
-                val_above=p["val_above"], type_above=p["type_above"],
                 title=title, x_label=x_label, y_label=y_label,
+                **config_store.param_plot_args(p),
             )
             st.session_state["result"] = result
             st.session_state["error"] = None
@@ -543,35 +545,57 @@ def _param_dialog(params, editing):
     def _dlg():
         preset = params.get(editing, {}) if editing else {}
         st.caption("Editable by any signed-in user.")
+        # Mode selector is OUTSIDE the form so the fields update live.
+        MODES = ["Threshold-based (below / above)", "Single tolerance (value / % bias)"]
+        default_mode = 0 if (not editing or config_store.has_threshold(preset)) else 1
+        mode = st.radio("Tolerance mode", MODES, index=default_mode, horizontal=True)
+        use_threshold = mode == MODES[0]
+
         with st.form("param_dialog_form"):
             c = st.columns(2)
             name = c[0].text_input("Parameter name", value=editing or "", placeholder="e.g. Creatinine")
             unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""), placeholder="e.g. mg/dL")
-            threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
-                                        step=0.1, format="%.4f")
-            g = st.columns(2)
-            with g[0], st.container(border=True, key="belowcard"):
-                st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
-                bc = st.columns(2)
-                val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
-                                               step=0.01, format="%.4f")
-                type_below = bc[1].selectbox("Type", TOL_OPTIONS,
-                                             index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
-                                             format_func=lambda t: t.split()[0])
-            with g[1], st.container(border=True, key="abovecard"):
-                st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
-                ac = st.columns(2)
-                val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
-                                               step=0.5, format="%.4f")
-                type_above = ac[1].selectbox("Type", TOL_OPTIONS,
-                                             index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
-                                             format_func=lambda t: t.split()[0])
+            if use_threshold:
+                threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
+                                            step=0.1, format="%.4f")
+                g = st.columns(2)
+                with g[0], st.container(border=True, key="belowcard"):
+                    st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
+                    bc = st.columns(2)
+                    val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
+                                                   step=0.01, format="%.4f")
+                    type_below = bc[1].selectbox("Type", TOL_OPTIONS,
+                                                 index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
+                                                 format_func=lambda t: t.split()[0])
+                with g[1], st.container(border=True, key="abovecard"):
+                    st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
+                    ac = st.columns(2)
+                    val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
+                                                   step=0.5, format="%.4f")
+                    type_above = ac[1].selectbox("Type", TOL_OPTIONS,
+                                                 index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
+                                                 format_func=lambda t: t.split()[0])
+            else:
+                st.caption("A single tolerance applied across the whole range — no threshold.")
+                tc = st.columns(2)
+                default_val = preset.get("val", preset.get("val_below", 0.15))
+                default_type = preset.get("type", preset.get("type_below", TOL_OPTIONS[0]))
+                val = tc[0].number_input("Tolerance value", value=float(default_val),
+                                         step=0.01, format="%.4f")
+                tol_type = tc[1].selectbox("Type", TOL_OPTIONS,
+                                           index=TOL_OPTIONS.index(default_type),
+                                           format_func=lambda t: t.split()[0])
             saved = st.form_submit_button("Save parameter", type="primary", use_container_width=True)
         if saved:
-            ok, msg = config_store.upsert_param(
-                params, name, unit=unit, threshold=threshold,
-                val_below=val_below, type_below=type_below,
-                val_above=val_above, type_above=type_above)
+            if use_threshold:
+                ok, msg = config_store.upsert_param(
+                    params, name, unit=unit, has_threshold=True, threshold=threshold,
+                    val_below=val_below, type_below=type_below,
+                    val_above=val_above, type_above=type_above)
+            else:
+                ok, msg = config_store.upsert_param(
+                    params, name, unit=unit, has_threshold=False,
+                    val=val, tol_type=tol_type)
             if ok:
                 st.rerun()
             else:
@@ -681,11 +705,19 @@ def page_configurations():
             st.caption('No parameters yet — click "Add parameter".')
         for name, p in params.items():
             r = st.columns(COLS, vertical_alignment="center")
+            if config_store.has_threshold(p):
+                thr = f"{p['threshold']:g}"
+                below = _tol_desc(p['val_below'], p['type_below'])[0]
+                above = _tol_desc(p['val_above'], p['type_above'])[0]
+            else:
+                # Single uniform tolerance — no threshold; same value throughout.
+                thr = "—"
+                below = above = _tol_desc(p['val'], p['type'])[0]
             r[0].markdown(f"<span style='font-weight:600;color:#0f172a;font-size:15px;'>{name}</span>", unsafe_allow_html=True)
             r[1].markdown(f"<span class='mono'>{p.get('unit', '')}</span>", unsafe_allow_html=True)
-            r[2].markdown(f"<span class='mono'>{p['threshold']:g}</span>", unsafe_allow_html=True)
-            r[3].markdown(f"<span class='mono'>{_tol_desc(p['val_below'], p['type_below'])[0]}</span>", unsafe_allow_html=True)
-            r[4].markdown(f"<span class='mono'>{_tol_desc(p['val_above'], p['type_above'])[0]}</span>", unsafe_allow_html=True)
+            r[2].markdown(f"<span class='mono'>{thr}</span>", unsafe_allow_html=True)
+            r[3].markdown(f"<span class='mono'>{below}</span>", unsafe_allow_html=True)
+            r[4].markdown(f"<span class='mono'>{above}</span>", unsafe_allow_html=True)
             if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
                 edit_target = name
             if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):

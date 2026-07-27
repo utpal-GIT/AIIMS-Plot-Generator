@@ -70,11 +70,15 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
 
     # Tolerance settings
     story.append(Paragraph("Tolerance settings", ss["Sec"]))
-    story.append(_kv_table([
-        ["Threshold (X)", f"{tol['threshold']:g}"],
-        ["Below threshold", f"{tol['val_below']:g} — {tol['type_below']}"],
-        ["Above threshold", f"{tol['val_above']:g} — {tol['type_above']}"],
-    ], [55 * mm, 100 * mm]))
+    if tol.get("has_threshold", True):
+        tol_rows = [
+            ["Threshold (X)", f"{tol['threshold']:g}"],
+            ["Below threshold", f"{tol['val_below']:g} — {tol['type_below']}"],
+            ["Above threshold", f"{tol['val_above']:g} — {tol['type_above']}"],
+        ]
+    else:
+        tol_rows = [["Tolerance (all values)", f"{tol['val']:g} — {tol['type']}"]]
+    story.append(_kv_table(tol_rows, [55 * mm, 100 * mm]))
 
     # Plot image
     story.append(Paragraph("Plot", ss["Sec"]))

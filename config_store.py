@@ -84,25 +84,64 @@ def save_params(params):
 # --------------------------------------------------------------------------
 # CRUD helpers  (return (ok, message))
 # --------------------------------------------------------------------------
-def upsert_param(params, name, *, unit, threshold, val_below, type_below,
-                 val_above, type_above, allow_overwrite=True):
+def upsert_param(params, name, *, unit, has_threshold=True,
+                 threshold=None, val_below=None, type_below=None,
+                 val_above=None, type_above=None,
+                 val=None, tol_type=None):
+    """Create/update a parameter.
+
+    Two shapes are supported:
+      • has_threshold=True  → threshold + below/above tolerances (default).
+      • has_threshold=False → a single uniform tolerance (value or % bias).
+    """
     name = (name or "").strip()
     if not name:
         return False, "Parameter name is required."
-    if name not in params and not allow_overwrite and name in params:
-        return False, f"Parameter '{name}' already exists."
-    if type_below not in TOL_OPTIONS or type_above not in TOL_OPTIONS:
-        return False, "Invalid tolerance type."
-    params[name] = {
-        "unit": (unit or "").strip(),
-        "threshold": float(threshold),
-        "val_below": float(val_below),
-        "type_below": type_below,
-        "val_above": float(val_above),
-        "type_above": type_above,
-    }
+    if has_threshold:
+        if type_below not in TOL_OPTIONS or type_above not in TOL_OPTIONS:
+            return False, "Invalid tolerance type."
+        params[name] = {
+            "unit": (unit or "").strip(),
+            "has_threshold": True,
+            "threshold": float(threshold),
+            "val_below": float(val_below),
+            "type_below": type_below,
+            "val_above": float(val_above),
+            "type_above": type_above,
+        }
+    else:
+        if tol_type not in TOL_OPTIONS:
+            return False, "Invalid tolerance type."
+        params[name] = {
+            "unit": (unit or "").strip(),
+            "has_threshold": False,
+            "val": float(val),
+            "type": tol_type,
+        }
     save_params(params)
     return True, f"Saved parameter '{name}'."
+
+
+def has_threshold(p):
+    """Whether a parameter uses a threshold-based below/above split.
+
+    Parameters saved before this feature have no flag and are threshold-based.
+    """
+    return p.get("has_threshold", True)
+
+
+def param_plot_args(p):
+    """Tolerance keyword args for plot_logic.generate_plot()."""
+    if has_threshold(p):
+        return dict(threshold=float(p["threshold"]),
+                    val_below=float(p["val_below"]), type_below=p["type_below"],
+                    val_above=float(p["val_above"]), type_above=p["type_above"])
+    # Single uniform tolerance: push the threshold below all data so every
+    # point falls on one side and uses the same value.
+    val, typ = float(p["val"]), p["type"]
+    return dict(threshold=float("-inf"),
+                val_below=val, type_below=typ,
+                val_above=val, type_above=typ)
 
 
 def delete_param(params, name):
