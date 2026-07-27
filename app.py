@@ -260,21 +260,9 @@ is_manager = auth.is_manager(current_role)
 def page_dashboard():
     params = config_store.load_params()
 
-    # ---- Header: title + Export report on one row, subtitle below ----
-    hc = st.columns([5, 1.4], vertical_alignment="center")
-    with hc[0]:
-        st.markdown("<div class='dash-title'>Dashboard</div>", unsafe_allow_html=True)
-    with hc[1]:
-        pdf = st.session_state.get("pdf_bytes")
-        st.download_button(
-            "Export report", data=pdf if pdf else b"",
-            file_name=st.session_state.get("pdf_name", "report.pdf"),
-            mime="application/pdf", disabled=pdf is None,
-            icon=":material/description:", use_container_width=True,
-            help=None if pdf else "Generate a plot first",
-            key="dl_report_header",
-        )
+    # ---- Header ----
     st.markdown(
+        "<div class='dash-title'>Dashboard</div>"
         "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
         unsafe_allow_html=True,
     )
