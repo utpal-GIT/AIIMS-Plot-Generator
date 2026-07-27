@@ -104,10 +104,11 @@ st.markdown(
       [class*="st-key-sett_reset"] button,[class*="st-key-sett_del"] button{
         background:transparent !important; border:none !important; box-shadow:none !important;
         min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;
-        /* Streamlit collapses the tall-avatar cell's stMarkdown to text height,
-           so the content group renders ~9px below the button columns' centre.
-           Nudge the icon buttons down to sit on the same line. */
-        transform:translateY(9px);}
+        /* In this Streamlit build the icon buttons sit ~6px above the row's
+           centre while the content group sits ~2px below it (measured on a
+           live instance). Push the buttons down to the band centre; the
+           content row is pulled up 3px inline. */
+        transform:translateY(7px);}
       [class*="st-key-sett_reset"] button:hover{color:#2563eb !important;}
       [class*="st-key-sett_del"] button{color:#f87171 !important;}
       [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
@@ -838,7 +839,7 @@ def page_settings():
             r = st.columns(COLS, vertical_alignment="center")
             bg, fg = _avatar_color(u["username"])
             r[0].markdown(
-                "<div style='display:flex; align-items:center;'>"
+                "<div style='display:flex; align-items:center; transform:translateY(-3px);'>"
                 "<div style='flex:2.6; display:flex; align-items:center; gap:10px; min-width:0;'>"
                 f"<div style='width:34px; height:34px; border-radius:50%; background:{bg}; "
                 f"color:{fg}; display:flex; align-items:center; justify-content:center; "
