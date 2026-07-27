@@ -551,27 +551,31 @@ def _param_dialog(params, editing):
         mode = st.radio("Tolerance mode", MODES, index=default_mode, horizontal=True)
         use_threshold = mode == MODES[0]
 
+        # Numeric fields use text_input (not number_input) so pressing Enter
+        # commits the typed value AND submits the form in one keypress.
+        def _fmt(x):
+            return f"{float(x):g}"
+
         with st.form("param_dialog_form"):
             c = st.columns(2)
             name = c[0].text_input("Parameter name", value=editing or "", placeholder="e.g. Creatinine")
             unit = c[1].text_input("Unit (optional)", value=preset.get("unit", ""), placeholder="e.g. mg/dL")
             if use_threshold:
-                threshold = st.number_input("Threshold (X-axis)", value=float(preset.get("threshold", 1.0)),
-                                            step=0.1, format="%.4f")
+                threshold_s = st.text_input("Threshold (X-axis)", value=_fmt(preset.get("threshold", 1.0)))
                 g = st.columns(2)
                 with g[0], st.container(border=True, key="belowcard"):
                     st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
                     bc = st.columns(2)
-                    val_below = bc[0].number_input("Value", value=float(preset.get("val_below", 0.15)),
-                                                   step=0.01, format="%.4f")
+                    val_below_s = bc[0].text_input("Value", value=_fmt(preset.get("val_below", 0.15)),
+                                                   key="tb_below")
                     type_below = bc[1].selectbox("Type", TOL_OPTIONS,
                                                  index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
                                                  format_func=lambda t: t.split()[0])
                 with g[1], st.container(border=True, key="abovecard"):
                     st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
                     ac = st.columns(2)
-                    val_above = ac[0].number_input("Value", value=float(preset.get("val_above", 15.0)),
-                                                   step=0.5, format="%.4f")
+                    val_above_s = ac[0].text_input("Value", value=_fmt(preset.get("val_above", 15.0)),
+                                                   key="tb_above")
                     type_above = ac[1].selectbox("Type", TOL_OPTIONS,
                                                  index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
                                                  format_func=lambda t: t.split()[0])
@@ -580,19 +584,35 @@ def _param_dialog(params, editing):
                 tc = st.columns(2)
                 default_val = preset.get("val", preset.get("val_below", 0.15))
                 default_type = preset.get("type", preset.get("type_below", TOL_OPTIONS[0]))
-                val = tc[0].number_input("Tolerance value", value=float(default_val),
-                                         step=0.01, format="%.4f")
+                val_s = tc[0].text_input("Tolerance value", value=_fmt(default_val))
                 tol_type = tc[1].selectbox("Type", TOL_OPTIONS,
                                            index=TOL_OPTIONS.index(default_type),
                                            format_func=lambda t: t.split()[0])
             saved = st.form_submit_button("Save parameter", type="primary", use_container_width=True)
         if saved:
+            def _num(s, field):
+                try:
+                    return float(str(s).strip()), None
+                except (ValueError, TypeError):
+                    return None, f"{field} must be a number."
             if use_threshold:
+                threshold, e1 = _num(threshold_s, "Threshold")
+                val_below, e2 = _num(val_below_s, "Below-threshold value")
+                val_above, e3 = _num(val_above_s, "Above-threshold value")
+                errs = [e for e in (e1, e2, e3) if e]
+                if errs:
+                    for e in errs:
+                        st.error(e)
+                    return
                 ok, msg = config_store.upsert_param(
                     params, name, unit=unit, has_threshold=True, threshold=threshold,
                     val_below=val_below, type_below=type_below,
                     val_above=val_above, type_above=type_above)
             else:
+                val, e = _num(val_s, "Tolerance value")
+                if e:
+                    st.error(e)
+                    return
                 ok, msg = config_store.upsert_param(
                     params, name, unit=unit, has_threshold=False,
                     val=val, tol_type=tol_type)
