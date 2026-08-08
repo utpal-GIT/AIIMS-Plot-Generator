@@ -312,25 +312,45 @@ def page_dashboard():
     # --- Data (left)  +  Statistics (right) ---
     data_col, stats_col = st.columns(2, gap="large")
     with data_col:
-        st.subheader("Data")
+        dh = st.columns([3, 1], vertical_alignment="center")
+        dh[0].subheader("Data")
+        clear_clicked = dh[1].button("Clear table", icon=":material/backspace:",
+                                     use_container_width=True,
+                                     help="Remove all rows and start fresh")
         mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
 
         if "data_df" not in st.session_state:
             st.session_state["data_df"] = _blank_data()
 
+        # Clearing bumps "data_gen", which changes the editor's key so its
+        # internal cell edits are discarded along with the stored frame.
+        if clear_clicked:
+            st.session_state["data_df"] = _blank_data()
+            st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+            st.rerun()
+
         if mode == "Upload Excel":
             up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
             sheet = st.text_input("Sheet name", value="Sheet1")
             if up is not None:
-                try:
-                    udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
-                    for col in ["Reference", "Measured"]:
-                        if col not in udf.columns:
-                            udf[col] = np.nan
-                    st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
-                    st.success(f"Loaded {len(st.session_state['data_df'])} rows.")
-                except Exception as e:
-                    st.error(f"Could not read the file: {e}")
+                # Load only when the file/sheet actually changes, so a rerun
+                # (e.g. after Clear) doesn't silently re-populate the table.
+                sig = (getattr(up, "file_id", None) or up.name, up.size, sheet)
+                if st.session_state.get("upload_sig") != sig:
+                    try:
+                        udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
+                        for col in ["Reference", "Measured"]:
+                            if col not in udf.columns:
+                                udf[col] = np.nan
+                        st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
+                        st.session_state["upload_sig"] = sig
+                        st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Could not read the file: {e}")
+                else:
+                    st.caption(f"Loaded **{len(st.session_state['data_df'])} rows** from "
+                               f"`{up.name}` — edit below or click **Clear table**.")
 
         base = st.session_state["data_df"].copy()
         for col in ["Reference", "Measured"]:
@@ -341,6 +361,7 @@ def page_dashboard():
 
         edited = st.data_editor(
             base, num_rows="dynamic", use_container_width=True,
+            key=f"data_editor_{st.session_state.get('data_gen', 0)}",
             column_config={
                 "Sl. No": st.column_config.NumberColumn("Sl. No", disabled=True, width="small"),
                 "Reference": st.column_config.NumberColumn("Reference", help="Reference / gold-standard value"),
