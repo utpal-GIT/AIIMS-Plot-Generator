@@ -356,21 +356,20 @@ def generate_plot(
 
     # Each block states the span it is computed over: the overall block covers
     # every plotted point, the valid block only the clinically valid range.
-    basis_word = "Average" if x_basis == "Average" else "Reference"
     data_range_text = f"{x_min_data:.2f} – {x_max_data:.2f}"
 
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
         ("", None),
         ("OVERALL SUMMARY", C_HEAD),
-        (f"{basis_word} range: {data_range_text}", C_NEUTRAL),
+        (f"Overall plot range: {data_range_text}", C_NEUTRAL),
         (f"Total data points: {n_total}", C_NEUTRAL),
         (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD),
-        (f"{basis_word} range: {min_text} – {max_text}", C_NEUTRAL),
+        (f"Valid measurable range: {min_text} – {max_text}", C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
         (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_AMBER),

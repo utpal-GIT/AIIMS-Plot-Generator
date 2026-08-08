@@ -781,13 +781,12 @@ def _render_statistics(s, excluded_n=0):
     ]
 
     # Each card states the span it is computed over.
-    basis_word = "Average" if s.get("x_basis") == "Average" else "Reference"
     data_rng = (f"{s['x_data_min']:.2f} – {s['x_data_max']:.2f}"
                 if math.isfinite(s.get("x_data_min", float("nan")))
                 and math.isfinite(s.get("x_data_max", float("nan"))) else "—")
 
     overall_rows = [
-        (f"{basis_word} range", data_rng, "#334155"),
+        ("Overall plot range", data_rng, "#334155"),
         ("Total data points", str(s["n_total"])),
     ]
     if excluded_n:
@@ -798,7 +797,7 @@ def _render_statistics(s, excluded_n=0):
         ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#334155", True),
     ]
     valid_rows = [
-        (f"{basis_word} range", rng, "#334155"),
+        ("Valid measurable range", rng, "#334155"),
         ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)", "#334155"),
         ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#f59e0b"),
         ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#f59e0b", True),
