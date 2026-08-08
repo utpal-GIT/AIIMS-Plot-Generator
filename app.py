@@ -109,6 +109,18 @@ st.markdown(
       [class*="st-key-sett_del"] button{color:#f87171 !important;}
       [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
       .st-key-belowcard,.st-key-abovecard{background:#f8fafc !important;}
+      /* Small, right-aligned "Clear" button beside the Data heading.
+         width:100% is required — the element container otherwise shrinks to
+         the button, leaving justify-content nothing to push against. */
+      .st-key-cleartbl{display:flex !important; justify-content:flex-end !important;
+                       width:100% !important;}
+      .st-key-cleartbl button{
+        min-height:0 !important; height:26px !important; padding:0 12px !important;
+        font-size:12.5px !important; font-weight:500 !important; border-radius:6px !important;
+        color:#64748b !important; border:1px solid #e2e8f0 !important;
+        background:#ffffff !important; box-shadow:none !important;}
+      .st-key-cleartbl button:hover{
+        color:#dc2626 !important; border-color:#fecaca !important; background:#fef2f2 !important;}
       .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
       .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
       /* Force inner padding on the control bar so labels clear the border
@@ -312,11 +324,11 @@ def page_dashboard():
     # --- Data (left)  +  Statistics (right) ---
     data_col, stats_col = st.columns(2, gap="large")
     with data_col:
-        dh = st.columns([3, 1], vertical_alignment="center")
+        dh = st.columns([3, 1], vertical_alignment="bottom")
         dh[0].subheader("Data")
-        clear_clicked = dh[1].button("Clear table", icon=":material/backspace:",
-                                     use_container_width=True,
-                                     help="Remove all rows and start fresh")
+        with dh[1]:
+            clear_clicked = st.button("Clear", key="cleartbl",
+                                      help="Remove all rows and start fresh")
         mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
 
         if "data_df" not in st.session_state:
