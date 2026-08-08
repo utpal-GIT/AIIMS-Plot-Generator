@@ -248,7 +248,7 @@ def generate_plot(
 
     # Mean difference + 95% CI band.
     ax.axhline(mean_diff, color="#ef4444", lw=1.8,
-               label=f"Mean difference ({mean_diff:.3f})", zorder=3)
+               label=f"Mean difference ({mean_diff:.2f})", zorder=3)
     ax.axhspan(ci_mean_lower, ci_mean_upper, color="#ef4444", alpha=0.12, lw=0, zorder=1)
 
     # Limits of Agreement.

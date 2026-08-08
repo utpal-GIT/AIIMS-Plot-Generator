@@ -96,7 +96,7 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
         ["Valid analysis range", rng],
         ["Mean-diff / OLS angle", f"{stats['ols_angle_deg']:.2f}°"],
         ["OLS slope", f"{stats['slope']:.4f}"],
-        ["Mean difference", f"{stats['mean_diff']:.3f}"],
+        ["Mean difference", f"{stats['mean_diff']:.2f}"],
         ["Total points", str(stats["n_total"])],
         ["Points in valid range", str(stats["n_in_range"])],
     ], [55 * mm, 100 * mm]))

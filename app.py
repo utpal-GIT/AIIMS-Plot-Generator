@@ -550,7 +550,7 @@ def _render_statistics(s):
         _stat_card("Analysis range", rng),
         _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
         _stat_card("OLS slope", f"{s['slope']:.4f}"),
-        _stat_card("Mean difference", f"{s['mean_diff']:.3f}"),
+        _stat_card("Mean difference", f"{s['mean_diff']:.2f}"),
     ]
 
     overall_rows = [
