@@ -354,17 +354,23 @@ def generate_plot(
     C_AMBER = "#f59e0b"    # amber = "Outlier (in range)" marker
     C_MUTE = "#94a3b8"
 
+    # Each block states the span it is computed over: the overall block covers
+    # every plotted point, the valid block only the clinically valid range.
+    basis_word = "Average" if x_basis == "Average" else "Reference"
+    data_range_text = f"{x_min_data:.2f} – {x_max_data:.2f}"
+
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
-        (f"Analysis range: {min_text} – {max_text}", C_HEAD),
         ("", None),
         ("OVERALL SUMMARY", C_HEAD),
+        (f"{basis_word} range: {data_range_text}", C_NEUTRAL),
         (f"Total data points: {n_total}", C_NEUTRAL),
         (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD),
+        (f"{basis_word} range: {min_text} – {max_text}", C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
         (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_AMBER),
@@ -402,6 +408,9 @@ def generate_plot(
         "loa_upper": float(loa_upper),
         "x_min": x_min,
         "x_max": x_max,
+        # Span of all plotted points on the chosen x basis (the overall range).
+        "x_data_min": float(x_min_data),
+        "x_data_max": float(x_max_data),
         # True when the boundary is a CI x tolerance crossing rather than
         # simply the edge of the data (only crossings get a vertical line).
         "x_min_is_limit": bool(x_min_is_limit),
