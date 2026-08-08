@@ -256,6 +256,15 @@ def generate_plot(
                label="Limits of Agreement (±1.96 SD)", zorder=2)
     ax.axhline(loa_lower, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85, zorder=2)
 
+    # Label each LoA line at the right edge, sitting just above the line.
+    for loa_val, loa_tag in ((loa_upper, "Upper LoA"), (loa_lower, "Lower LoA")):
+        if np.isfinite(loa_val):
+            ax.text(0.995, loa_val, f"{loa_tag} ({loa_val:.2f})",
+                    transform=ax.get_yaxis_transform(), ha="right", va="bottom",
+                    color="#a855f7", fontsize=8.5, fontweight="semibold", zorder=7,
+                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7,
+                              boxstyle="round,pad=0.18"))
+
     # Tolerance limits.
     if x_below is not None:
         ax.plot(x_below, tol_upper_below, color="#059669", lw=1.6, label="Tolerance limit", zorder=2)
