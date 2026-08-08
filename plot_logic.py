@@ -72,7 +72,8 @@ def generate_plot(
     df = df.dropna(subset=["Reference", "Measured"]).reset_index(drop=True)
 
     if len(df) < 3:
-        raise ValueError("Need at least 3 valid rows (Reference & Measured) to fit a regression.")
+        raise ValueError("Need at least 3 selected rows with both Reference and Measured "
+                         "to fit a regression.")
 
     df["Diff"] = df["Measured"] - df["Reference"]
 

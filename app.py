@@ -29,8 +29,18 @@ LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "
 
 def _blank_data(n=6):
     # float64 columns (not object) so pasted/typed values keep full precision.
-    return pd.DataFrame({"Reference": pd.Series([np.nan] * n, dtype="float64"),
+    return pd.DataFrame({"Include": pd.Series([True] * n, dtype="bool"),
+                         "Reference": pd.Series([np.nan] * n, dtype="float64"),
                          "Measured": pd.Series([np.nan] * n, dtype="float64")})
+
+
+def _with_include(df, default=True):
+    """Ensure an Include bool column exists; blank/new rows default to `default`."""
+    df = df.copy()
+    if "Include" not in df.columns:
+        df["Include"] = default
+    df["Include"] = df["Include"].fillna(default).astype(bool)
+    return df[["Include", "Reference", "Measured"]]
 
 st.markdown(
     """
@@ -112,15 +122,18 @@ st.markdown(
       /* Small, right-aligned "Clear" button beside the Data heading.
          width:100% is required — the element container otherwise shrinks to
          the button, leaving justify-content nothing to push against. */
-      .st-key-cleartbl{display:flex !important; justify-content:flex-end !important;
+      .st-key-cleartbl,.st-key-selall,.st-key-deselall{
+                       display:flex !important; justify-content:flex-end !important;
                        width:100% !important;}
-      .st-key-cleartbl button{
+      .st-key-cleartbl button,.st-key-selall button,.st-key-deselall button{
         min-height:0 !important; height:26px !important; padding:0 12px !important;
         font-size:12.5px !important; font-weight:500 !important; border-radius:6px !important;
         color:#64748b !important; border:1px solid #e2e8f0 !important;
         background:#ffffff !important; box-shadow:none !important;}
       .st-key-cleartbl button:hover{
         color:#dc2626 !important; border-color:#fecaca !important; background:#fef2f2 !important;}
+      .st-key-selall button:hover,.st-key-deselall button:hover{
+        color:#2563eb !important; border-color:#bfdbfe !important; background:#eff6ff !important;}
       .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
       .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
       /* Force inner padding on the control bar so labels clear the border
@@ -324,9 +337,15 @@ def page_dashboard():
     # --- Data (left)  +  Statistics (right) ---
     data_col, stats_col = st.columns(2, gap="large")
     with data_col:
-        dh = st.columns([3, 1], vertical_alignment="bottom")
+        dh = st.columns([1.9, 1.15, 1.35, 0.95], vertical_alignment="bottom")
         dh[0].subheader("Data")
         with dh[1]:
+            sel_all = st.button("Select all", key="selall",
+                                help="Include every row in the plot and statistics")
+        with dh[2]:
+            desel_all = st.button("Deselect all", key="deselall",
+                                  help="Exclude every row from the plot and statistics")
+        with dh[3]:
             clear_clicked = st.button("Clear", key="cleartbl",
                                       help="Remove all rows and start fresh")
         mode = st.radio("Input mode", ["Table", "Upload Excel"], horizontal=True)
@@ -345,6 +364,15 @@ def page_dashboard():
                 st.session_state.pop(k, None)
             st.rerun()
 
+        # Bulk selection. The editor key must change so its pending checkbox
+        # edits don't override the values we just wrote.
+        if sel_all or desel_all:
+            cur = _with_include(st.session_state["data_df"])
+            cur["Include"] = bool(sel_all)
+            st.session_state["data_df"] = cur
+            st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+            st.rerun()
+
         if mode == "Upload Excel":
             up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
             sheet = st.text_input("Sheet name", value="Sheet1")
@@ -358,7 +386,8 @@ def page_dashboard():
                         for col in ["Reference", "Measured"]:
                             if col not in udf.columns:
                                 udf[col] = np.nan
-                        st.session_state["data_df"] = udf[["Reference", "Measured"]].reset_index(drop=True)
+                        st.session_state["data_df"] = _with_include(
+                            udf[["Reference", "Measured"]].reset_index(drop=True))
                         st.session_state["upload_sig"] = sig
                         st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
                         st.rerun()
@@ -372,13 +401,16 @@ def page_dashboard():
         for col in ["Reference", "Measured"]:
             if col not in base.columns:
                 base[col] = np.nan
-        base = base[["Reference", "Measured"]].reset_index(drop=True)
-        base.insert(0, "Sl. No", range(1, len(base) + 1))
+        base = _with_include(base).reset_index(drop=True)
+        base.insert(1, "Sl. No", range(1, len(base) + 1))
 
         edited = st.data_editor(
             base, num_rows="dynamic", use_container_width=True,
             key=f"data_editor_{st.session_state.get('data_gen', 0)}",
             column_config={
+                "Include": st.column_config.CheckboxColumn(
+                    "Use", default=True, width="small",
+                    help="Untick to exclude this row from the plot and statistics"),
                 "Sl. No": st.column_config.NumberColumn("Sl. No", disabled=True, width="small"),
                 "Reference": st.column_config.NumberColumn("Reference", help="Reference / gold-standard value"),
                 "Measured": st.column_config.NumberColumn("Measured", help="Value from the method under test"),
@@ -388,8 +420,8 @@ def page_dashboard():
         store = edited.drop(columns=["Sl. No"]).reset_index(drop=True)
         for col in ["Reference", "Measured"]:
             store[col] = pd.to_numeric(store[col], errors="coerce")
+        store = _with_include(store)          # rows added by pasting default to included
         st.session_state["data_df"] = store
-        edited_df = store
 
         # "Sl. No" is numbered from the frame passed *into* the editor, so rows
         # the user pastes or adds come back blank. Re-render once with the
@@ -399,15 +431,23 @@ def page_dashboard():
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
             st.rerun()
 
-        # Data fingerprint — compare this between upload and paste to confirm
-        # the table holds exactly the same numbers as your file.
+        # Only ticked rows reach the plot / statistics.
+        edited_df = store[store["Include"]][["Reference", "Measured"]].reset_index(drop=True)
+
+        complete = store.dropna(subset=["Reference", "Measured"])
         vd = edited_df.dropna(subset=["Reference", "Measured"])
-        if len(vd):
-            st.caption(
-                f"**{len(vd)} complete rows** · Reference mean {vd['Reference'].mean():.2f} "
-                f"(min {vd['Reference'].min():.2f}, max {vd['Reference'].max():.2f}) · "
-                f"Measured mean {vd['Measured'].mean():.2f}"
-            )
+        n_excluded = len(complete) - len(vd)
+        if len(complete):
+            lead = (f"**{len(vd)} of {len(complete)} rows included**"
+                    if n_excluded else f"**{len(vd)} complete rows**")
+            if len(vd):
+                st.caption(
+                    f"{lead} · Reference mean {vd['Reference'].mean():.2f} "
+                    f"(min {vd['Reference'].min():.2f}, max {vd['Reference'].max():.2f}) · "
+                    f"Measured mean {vd['Measured'].mean():.2f}"
+                )
+            else:
+                st.caption(f"{lead} — tick rows to include them.")
 
     stats_box = stats_col.container()  # filled after compute so it sits beside the table
 
@@ -427,11 +467,15 @@ def page_dashboard():
     plot_box = st.container()
 
     # --- Compute ---
-    # Generate on button click, and afterwards live-refresh whenever any plot
-    # customization (axis basis, title, labels) changes and Enter is pressed.
-    current_opts = (x_basis, title, x_label, y_label)
-    opts_changed = (st.session_state.get("result") is not None
-                    and st.session_state.get("last_opts") != current_opts)
+    # Generate on button click, and afterwards live-refresh whenever a plot
+    # customization changes (Enter pressed) or a row is ticked/unticked — the
+    # selection is folded into the same signature.
+    sel_sig = tuple(bool(v) for v in store["Include"])
+    current_opts = (x_basis, title, x_label, y_label, sel_sig)
+    # Keyed off last_opts rather than a successful result, so that re-selecting
+    # rows recovers the plot after an error (e.g. everything was deselected).
+    opts_changed = ("last_opts" in st.session_state
+                    and st.session_state["last_opts"] != current_opts)
     if generate or opts_changed:
         try:
             result = generate_plot(
@@ -452,6 +496,7 @@ def page_dashboard():
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
+        st.session_state["excluded_n"] = n_excluded
         st.session_state["last_opts"] = current_opts
 
     result = st.session_state.get("result")
@@ -465,7 +510,8 @@ def page_dashboard():
         elif result is None:
             st.info("Generate a plot to see the statistics.")
         else:
-            _render_statistics(result.stats)
+            _render_statistics(result.stats,
+                               excluded_n=st.session_state.get("excluded_n", 0))
 
     # --- Plot output ---
     with plot_box:
@@ -539,7 +585,7 @@ def _summary_card(title, rows):
     return f"<div class='sc'><div class='scl' style='margin-bottom:4px;'>{title}</div>{body}</div>"
 
 
-def _render_statistics(s):
+def _render_statistics(s, excluded_n=0):
     import math
     rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
            if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
@@ -555,6 +601,10 @@ def _render_statistics(s):
 
     overall_rows = [
         ("Total data points", str(s["n_total"])),
+    ]
+    if excluded_n:
+        overall_rows.append(("Excluded rows (not plotted)", str(excluded_n), "#94a3b8"))
+    overall_rows += [
         ("Outliers", f"{ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", "#334155"),
         ("Overestimated", f"{ov['over_n']} ({ov['over_pct']:.1f}%)", "#334155", True),
         ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#334155", True),
