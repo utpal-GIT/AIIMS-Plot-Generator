@@ -404,9 +404,9 @@ def page_dashboard():
         vd = edited_df.dropna(subset=["Reference", "Measured"])
         if len(vd):
             st.caption(
-                f"**{len(vd)} complete rows** · Reference mean {vd['Reference'].mean():.4f} "
-                f"(min {vd['Reference'].min():.3f}, max {vd['Reference'].max():.3f}) · "
-                f"Measured mean {vd['Measured'].mean():.4f}"
+                f"**{len(vd)} complete rows** · Reference mean {vd['Reference'].mean():.2f} "
+                f"(min {vd['Reference'].min():.2f}, max {vd['Reference'].max():.2f}) · "
+                f"Measured mean {vd['Measured'].mean():.2f}"
             )
 
     stats_box = stats_col.container()  # filled after compute so it sits beside the table
