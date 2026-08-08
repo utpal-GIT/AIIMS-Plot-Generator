@@ -87,6 +87,31 @@ def _plot_hover_html(payload):
             + "".join(spots) + "</div>")
 
 
+def _excel_sheets(upload):
+    """Sheet names in an uploaded workbook, cached per file.
+
+    The upload is a stream shared with the later read_excel call, so it is
+    rewound both before and after inspecting it.
+    """
+    key = (getattr(upload, "file_id", None) or upload.name, upload.size)
+    cached = st.session_state.get("_sheets_cache")
+    if cached and cached[0] == key:
+        return cached[1]
+    try:
+        upload.seek(0)
+        with pd.ExcelFile(upload) as xls:      # engine auto-detected from content
+            names = [str(n) for n in xls.sheet_names]
+    except Exception:
+        names = []
+    finally:
+        try:
+            upload.seek(0)
+        except Exception:
+            pass
+    st.session_state["_sheets_cache"] = (key, names)
+    return names
+
+
 def _with_include(df, default=True):
     """Ensure an Include bool column exists; blank/new rows default to `default`."""
     df = df.copy()
@@ -441,8 +466,21 @@ def page_dashboard():
 
         if mode == "Upload Excel":
             up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
-            sheet = st.text_input("Sheet name", value="Sheet1")
-            if up is not None:
+            sheet = None
+            if up is None:
+                st.selectbox("Sheet name", ["—"], disabled=True,
+                             help="Upload a workbook to list its sheets")
+            else:
+                sheets = _excel_sheets(up)
+                if sheets:
+                    # Keyed per file so a new upload starts at its first sheet.
+                    fkey = getattr(up, "file_id", None) or f"{up.name}:{up.size}"
+                    sheet = st.selectbox("Sheet name", sheets, key=f"sheet_{fkey}")
+                else:
+                    st.selectbox("Sheet name", ["—"], disabled=True)
+                    st.error("Couldn't read the sheet list — the file may be corrupt, "
+                             "or an .xls that needs converting to .xlsx.")
+            if up is not None and sheet is not None:
                 # Load only when the file/sheet actually changes, so a rerun
                 # (e.g. after Clear) doesn't silently re-populate the table.
                 sig = (getattr(up, "file_id", None) or up.name, up.size, sheet)
