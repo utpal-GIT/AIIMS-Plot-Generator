@@ -13,7 +13,9 @@
                   box-shadow:inset 0 0 0 1px rgba(37,99,235,.45); }
   #wrap i.sel { background:rgba(220,38,38,.22);
                 box-shadow:inset 0 0 0 2px #dc2626; }
-  #wrap i:hover::after, #wrap i.sel::after {
+  /* tooltip on hover only — marked points keep just the ring, so several
+     can be marked at once without a wall of labels */
+  #wrap i:hover::after {
     content:attr(data-tip); position:absolute; left:50%; bottom:135%;
     transform:translateX(-50%); background:#0f172a; color:#fff;
     font-family:"Source Sans Pro","Segoe UI",sans-serif; font-size:11.5px;
@@ -21,9 +23,9 @@
     white-space:pre; z-index:30; pointer-events:none;
     box-shadow:0 2px 8px rgba(0,0,0,.28); }
   /* flip/clamp so the label can't be clipped by the iframe edges */
-  #wrap i.b:hover::after, #wrap i.b.sel::after { bottom:auto; top:135%; }
-  #wrap i.l:hover::after, #wrap i.l.sel::after { left:0; transform:none; }
-  #wrap i.r:hover::after, #wrap i.r.sel::after { left:auto; right:0; transform:none; }
+  #wrap i.b:hover::after { bottom:auto; top:135%; }
+  #wrap i.l:hover::after { left:0; transform:none; }
+  #wrap i.r:hover::after { left:auto; right:0; transform:none; }
 </style>
 </head>
 <body>
@@ -43,7 +45,7 @@
 
   function render(args) {
     var pts = args.points || [];
-    var selected = args.selected;
+    var selected = args.selected || [];   // list of marked Sl No values
     wrap.innerHTML = "";
 
     var img = document.createElement("img");
@@ -59,7 +61,7 @@
       if (p.top < 14) cls.push("b");        // label would clip at the top
       if (p.left < 12) cls.push("l");       // ...or at the left/right edge
       else if (p.left > 88) cls.push("r");
-      if (selected !== null && selected === p.sl) cls.push("sel");
+      if (selected.indexOf(p.sl) !== -1) cls.push("sel");
       i.className = cls.join(" ");
       i.setAttribute("data-tip", "Sl No " + p.sl + "  ·  (" + p.x + ", " + p.y + ")");
       i.addEventListener("click", function () {

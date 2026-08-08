@@ -426,7 +426,7 @@ def page_dashboard():
         if clear_clicked:
             st.session_state["data_df"] = _blank_data()
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
-            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts", "clicked_sl"):
+            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts", "marked"):
                 st.session_state.pop(k, None)
             st.rerun()
 
@@ -599,16 +599,22 @@ def page_dashboard():
                         raise ValueError("plot predates hover support")
                     payload = _plot_payload(result)
                     if _plot_click is not None:
+                        marked = list(st.session_state.get("marked", []))
                         clicked = _plot_click(img=payload["img"], points=payload["points"],
-                                              selected=st.session_state.get("clicked_sl"),
-                                              key="plotclick", default=None)
+                                              selected=marked, key="plotclick", default=None)
                         # The component replays its last value on every rerun;
                         # only act when the click id actually changes.
                         if clicked and clicked.get("n") != st.session_state.get("click_n"):
                             st.session_state["click_n"] = clicked.get("n")
-                            st.session_state["clicked_sl"] = clicked.get("sl")
+                            sl = clicked.get("sl")
+                            if sl in marked:
+                                marked.remove(sl)      # clicking again unmarks
+                            else:
+                                marked.append(sl)
+                            st.session_state["marked"] = marked
                             st.rerun()
-                        st.caption("Hover a point for its Sl No and (X, Y) — click one to remove it.")
+                        st.caption("Hover a point for its Sl No and (X, Y) — "
+                                   "click to mark points, click again to unmark.")
                     else:
                         st.markdown(_plot_hover_html(payload), unsafe_allow_html=True)
                         st.caption("Hover a point to see its Sl No and (X, Y) values.")
@@ -617,34 +623,34 @@ def page_dashboard():
                     st.caption("Interactive plot unavailable — click **Generate plot** to rebuild."
                                if stale else f"Interactive plot unavailable ({e}).")
 
-            # --- Confirm bar for a clicked point ---
-            sl = st.session_state.get("clicked_sl")
-            if sl is not None:
-                df_now = st.session_state["data_df"]
-                idx = sl - 1
-                valid = 0 <= idx < len(df_now)
+            # --- Confirm bar for the marked point(s) ---
+            df_now = st.session_state["data_df"]
+            marked = [s for s in st.session_state.get("marked", [])
+                      if 0 <= s - 1 < len(df_now)]
+            if marked:
+                shown = ", ".join(str(s) for s in sorted(marked)[:12])
+                if len(marked) > 12:
+                    shown += f" … (+{len(marked) - 12})"
+                if len(marked) == 1:
+                    row = df_now.iloc[marked[0] - 1]
+                    label = (f"Marked <b>Sl No {marked[0]}</b> &nbsp;·&nbsp; "
+                             f"Reference {row['Reference']:.2f}, Measured {row['Measured']:.2f}")
+                else:
+                    label = f"<b>{len(marked)} points marked</b> &nbsp;·&nbsp; Sl No {shown}"
                 cb = st.columns([2.4, 1, 1], vertical_alignment="center")
-                with cb[0]:
-                    if valid:
-                        row = df_now.iloc[idx]
-                        st.markdown(
-                            f"<div style='font-size:13px;color:#334155;'>Selected "
-                            f"<b>Sl No {sl}</b> &nbsp;·&nbsp; Reference {row['Reference']:.2f}, "
-                            f"Measured {row['Measured']:.2f}</div>",
-                            unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='font-size:13px;color:#94a3b8;'>"
-                                    "That row is no longer in the table.</div>",
-                                    unsafe_allow_html=True)
-                if cb[1].button("Deselect point", type="primary", use_container_width=True,
-                                disabled=not valid, key="drop_pt"):
-                    df_now.loc[df_now.index[idx], "Include"] = False
+                cb[0].markdown(f"<div style='font-size:13px;color:#334155;'>{label}</div>",
+                               unsafe_allow_html=True)
+                drop_label = "Deselect point" if len(marked) == 1 else f"Deselect {len(marked)} points"
+                if cb[1].button(drop_label, type="primary", use_container_width=True,
+                                key="drop_pt"):
+                    for s in marked:
+                        df_now.loc[df_now.index[s - 1], "Include"] = False
                     st.session_state["data_df"] = df_now
                     st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
-                    st.session_state.pop("clicked_sl", None)
+                    st.session_state["marked"] = []
                     st.rerun()
-                if cb[2].button("Cancel", use_container_width=True, key="drop_cancel"):
-                    st.session_state.pop("clicked_sl", None)
+                if cb[2].button("Clear marks", use_container_width=True, key="drop_cancel"):
+                    st.session_state["marked"] = []
                     st.rerun()
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
