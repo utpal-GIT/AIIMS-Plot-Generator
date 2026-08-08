@@ -335,10 +335,14 @@ def page_dashboard():
             st.session_state["data_df"] = _blank_data()
 
         # Clearing bumps "data_gen", which changes the editor's key so its
-        # internal cell edits are discarded along with the stored frame.
+        # internal cell edits are discarded along with the stored frame. The
+        # plot, statistics and report are dropped too, so nothing on screen
+        # refers to data that is no longer in the table.
         if clear_clicked:
             st.session_state["data_df"] = _blank_data()
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts"):
+                st.session_state.pop(k, None)
             st.rerun()
 
         if mode == "Upload Excel":
