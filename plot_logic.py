@@ -164,6 +164,11 @@ def generate_plot(
     valid_mask = (ci_upper_full <= tol_upper_full) & (ci_lower_full >= tol_lower_full)
     valid_idx = np.where(valid_mask)[0]
 
+    # A boundary is only a real limit when it comes from a CI x tolerance
+    # crossing; otherwise the region simply runs to the edge of the data and
+    # no vertical line is drawn for it (the shading still extends there).
+    x_min_is_limit = x_max_is_limit = False
+
     if valid_idx.size == 0:
         # No x satisfies both conditions -> no valid range.
         x_min, x_max = np.nan, np.nan
@@ -176,6 +181,7 @@ def generate_plot(
             left_flip = x_dense_full[i0]
             cands = [b for b in boundary_ints if b <= left_flip + 1e-9]
             x_min = max(cands) if cands else x_min_data
+            x_min_is_limit = bool(cands)
         # Right boundary
         if i1 == len(x_dense_full) - 1:
             x_max = x_max_data                       # valid up to the right data edge
@@ -183,6 +189,7 @@ def generate_plot(
             right_flip = x_dense_full[i1]
             cands = [b for b in boundary_ints if b >= right_flip - 1e-9]
             x_max = min(cands) if cands else x_max_data
+            x_max_is_limit = bool(cands)
 
     # ---- 6. Tolerance-line segments for plotting (split at threshold) ----
     tol_upper_below = tol_lower_below = x_below = None
@@ -285,11 +292,13 @@ def generate_plot(
     ax.scatter(df_out_outlier["X"], df_out_outlier["Diff"], color="#dc2626", s=42, edgecolor="white",
                linewidth=0.6, label="Outlier · outside valid region", alpha=0.95, zorder=6)
 
-    # Valid-range boundary markers.
-    for bx in (x_min, x_max):
-        if np.isfinite(bx):
+    # Valid-range boundary markers — drawn only where the boundary is a real
+    # CI x tolerance crossing, and named so it is clear which end it marks.
+    for bx, is_limit, tag in ((x_min, x_min_is_limit, "Minimum"),
+                              (x_max, x_max_is_limit, "Maximum")):
+        if np.isfinite(bx) and is_limit:
             ax.axvline(x=bx, color="#15803d", linestyle="--", lw=1, alpha=0.7, zorder=2)
-            ax.text(bx, 0.02, f" x={bx:.2f}", transform=ax.get_xaxis_transform(),
+            ax.text(bx, 0.02, f" {tag}  x={bx:.2f}", transform=ax.get_xaxis_transform(),
                     rotation=90, va="bottom", ha="right", color="#15803d",
                     fontsize=8.5, fontweight="semibold", zorder=7)
 
@@ -393,6 +402,10 @@ def generate_plot(
         "loa_upper": float(loa_upper),
         "x_min": x_min,
         "x_max": x_max,
+        # True when the boundary is a CI x tolerance crossing rather than
+        # simply the edge of the data (only crossings get a vertical line).
+        "x_min_is_limit": bool(x_min_is_limit),
+        "x_max_is_limit": bool(x_max_is_limit),
         "n_total": n_total,
         "n_in_range": len(df_in_x),
         "categories": {
