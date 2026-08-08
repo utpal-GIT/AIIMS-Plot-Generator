@@ -34,6 +34,37 @@ def _blank_data(n=6):
                          "Measured": pd.Series([np.nan] * n, dtype="float64")})
 
 
+def _plot_hover_html(result, dpi=150):
+    """Render the figure as a PNG with a hover target over each data point.
+
+    The matplotlib figure stays the single source of truth (the PNG/PDF exports
+    are unchanged); targets are placed as percentages of the figure box so they
+    track the image as it scales to the container width.
+    """
+    fig = result.fig
+    fig.canvas.draw()                        # finalise layout so transData is exact
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi)  # no bbox_inches — keeps the 1:1 mapping
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode()
+
+    w_px, h_px = fig.get_size_inches() * fig.dpi
+    ax = fig.axes[0]
+    spots = []
+    for r in result.points.itertuples(index=False):
+        px, py = ax.transData.transform((r.x, r.y))
+        left, top = px / w_px * 100.0, (1.0 - py / h_px) * 100.0
+        if not (0 <= left <= 100 and 0 <= top <= 100):
+            continue                         # point clipped out of the axes
+        flip = " class='b'" if top < 14 else ""   # tooltip below when near the top
+        spots.append(
+            f"<i{flip} style='left:{left:.4f}%;top:{top:.4f}%' "
+            f"data-tip='Sl. No {int(r.sl_no)}  ·  X {r.x:.2f}  ·  Y {r.y:.2f}'></i>"
+        )
+    return (f"<div class='plothover'><img src='data:image/png;base64,{b64}'/>"
+            + "".join(spots) + "</div>")
+
+
 def _with_include(df, default=True):
     """Ensure an Include bool column exists; blank/new rows default to `default`."""
     df = df.copy()
@@ -134,6 +165,19 @@ st.markdown(
         color:#dc2626 !important; border-color:#fecaca !important; background:#fef2f2 !important;}
       .st-key-selall button:hover,.st-key-deselall button:hover{
         color:#2563eb !important; border-color:#bfdbfe !important; background:#eff6ff !important;}
+      /* Hover targets laid over the plot image (see _plot_hover_html) */
+      .plothover{position:relative; width:100%; line-height:0;}
+      .plothover img{width:100%; display:block;}
+      .plothover i{position:absolute; width:16px; height:16px;
+        margin:-8px 0 0 -8px; border-radius:50%; cursor:crosshair;}
+      .plothover i:hover{background:rgba(37,99,235,.16);
+        box-shadow:inset 0 0 0 1px rgba(37,99,235,.45);}
+      .plothover i:hover::after{content:attr(data-tip); position:absolute;
+        left:50%; bottom:135%; transform:translateX(-50%);
+        background:#0f172a; color:#fff; font-size:11.5px; font-weight:500;
+        line-height:1.35; padding:5px 9px; border-radius:6px; white-space:pre;
+        z-index:30; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,.28);}
+      .plothover i.b:hover::after{bottom:auto; top:135%;}
       .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
       .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
       /* Force inner padding on the control bar so labels clear the border
@@ -431,8 +475,12 @@ def page_dashboard():
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
             st.rerun()
 
-        # Only ticked rows reach the plot / statistics.
-        edited_df = store[store["Include"]][["Reference", "Measured"]].reset_index(drop=True)
+        # Only ticked rows reach the plot / statistics. The frame index matches
+        # the table's row order, so index+1 is the visible "Sl. No" — carried
+        # through so hover labels can name the original row.
+        sel = store[store["Include"]].copy()
+        sel["SlNo"] = sel.index + 1
+        edited_df = sel[["SlNo", "Reference", "Measured"]].reset_index(drop=True)
 
         complete = store.dropna(subset=["Reference", "Measured"])
         vd = edited_df.dropna(subset=["Reference", "Measured"])
@@ -521,7 +569,10 @@ def page_dashboard():
             st.info("Enter data, then click **Generate plot** at the top.")
         else:
             with st.container(border=True, key="plotcard"):
-                st.pyplot(result.fig, use_container_width=True)
+                try:
+                    st.markdown(_plot_hover_html(result), unsafe_allow_html=True)
+                except Exception:
+                    st.pyplot(result.fig, use_container_width=True)
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)

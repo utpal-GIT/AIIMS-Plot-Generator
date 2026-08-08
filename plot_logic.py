@@ -36,10 +36,13 @@ def find_intersections(x, y1, y2):
 class PlotResult:
     """Container for the generated figure plus all computed statistics."""
 
-    def __init__(self, fig, stats_dict, results_df):
+    def __init__(self, fig, stats_dict, results_df, points=None):
         self.fig = fig
         self.stats = stats_dict
         self.results_df = results_df
+        # One row per plotted marker: sl_no, x, y, cat — used to build hover
+        # targets over the rendered image.
+        self.points = points
 
 
 def generate_plot(
@@ -67,6 +70,10 @@ def generate_plot(
     """
     # ---- 1. Prepare data ----
     df = df.copy()
+    # Row identity for hover labels; the caller can supply the table's Sl. No,
+    # otherwise number the incoming rows. It survives the sort below.
+    if "SlNo" not in df.columns:
+        df["SlNo"] = np.arange(1, len(df) + 1)
     df["Reference"] = pd.to_numeric(df["Reference"], errors="coerce")
     df["Measured"] = pd.to_numeric(df["Measured"], errors="coerce")
     df = df.dropna(subset=["Reference", "Measured"]).reset_index(drop=True)
@@ -401,4 +408,13 @@ def generate_plot(
     results_df = df[["Reference", "Measured", "X", "Diff", "Tol", "is_outlier"]].copy()
     results_df = results_df.rename(columns={"X": x_basis, "is_outlier": "Outlier"})
 
-    return PlotResult(fig, stats_dict, results_df)
+    points = pd.DataFrame({
+        "sl_no": df["SlNo"].astype(int),
+        "x": df["X"].astype(float),
+        "y": df["Diff"].astype(float),
+        "cat": np.where(mask_x_range,
+                        np.where(df["is_outlier"], "outlier_in_range", "valid"),
+                        np.where(df["is_outlier"], "outlier_outside", "within_tol_outside")),
+    }).reset_index(drop=True)
+
+    return PlotResult(fig, stats_dict, results_df, points)
