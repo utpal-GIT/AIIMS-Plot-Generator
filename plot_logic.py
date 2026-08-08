@@ -256,14 +256,6 @@ def generate_plot(
                label="Limits of Agreement (±1.96 SD)", zorder=2)
     ax.axhline(loa_lower, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85, zorder=2)
 
-    # Label each LoA line at the right edge, sitting just above the line.
-    for loa_val, loa_tag in ((loa_upper, "Upper LoA"), (loa_lower, "Lower LoA")):
-        if np.isfinite(loa_val):
-            ax.text(0.995, loa_val, f"{loa_tag} ({loa_val:.2f})",
-                    transform=ax.get_yaxis_transform(), ha="right", va="bottom",
-                    color="#a855f7", fontsize=8.5, fontweight="semibold", zorder=7,
-                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7,
-                              boxstyle="round,pad=0.18"))
 
     # Tolerance limits.
     if x_below is not None:
@@ -300,6 +292,25 @@ def generate_plot(
     ax.set_facecolor("#ffffff")
     ax.grid(True, color="#e9ecef", lw=0.8)
     ax.tick_params(colors="#666666", labelsize=10, length=0)
+
+    # Mark the Limits of Agreement on the y-axis itself (value only), in the
+    # LoA line colour. Regular ticks that would collide are dropped.
+    loa_ticks = [v for v in (loa_upper, loa_lower) if np.isfinite(v)]
+    if loa_ticks:
+        y_lo, y_hi = ax.get_ylim()
+        span = y_hi - y_lo
+        keep = [t for t in ax.get_yticks()
+                if y_lo <= t <= y_hi
+                and all(abs(t - v) > 0.045 * span for v in loa_ticks)]
+        ticks = sorted(keep + loa_ticks)
+        ax.set_yticks(ticks)
+        ax.set_yticklabels([f"{t:.2f}" if any(t == v for v in loa_ticks) else f"{t:g}"
+                            for t in ticks])
+        for lbl, t in zip(ax.get_yticklabels(), ticks):
+            if any(t == v for v in loa_ticks):
+                lbl.set_color("#a855f7")
+                lbl.set_fontweight("semibold")
+        ax.set_ylim(y_lo, y_hi)  # set_yticks can widen the view; keep it fixed
 
     ax.set_title(title, fontsize=15, fontweight="semibold", color="#1f2937", loc="left", pad=22)
     ax.set_xlabel(x_label, fontsize=11, color="#374151", labelpad=12)
