@@ -487,6 +487,17 @@ def page_dashboard():
                 if st.session_state.get("upload_sig") != sig:
                     try:
                         udf = pd.read_excel(up, sheet_name=sheet, engine="openpyxl")
+                        # The test column is labelled "Index"; older files may
+                        # still say "Measured". Match either, case-insensitively.
+                        have = {str(c).strip().lower(): c for c in udf.columns}
+                        ren = {}
+                        if "reference" in have:
+                            ren[have["reference"]] = "Reference"
+                        for alias in ("measured", "index"):
+                            if alias in have and "Measured" not in ren.values():
+                                ren[have[alias]] = "Measured"
+                                break
+                        udf = udf.rename(columns=ren)
                         for col in ["Reference", "Measured"]:
                             if col not in udf.columns:
                                 udf[col] = np.nan
@@ -517,7 +528,9 @@ def page_dashboard():
                     help="Untick to exclude this row from the plot and statistics"),
                 "Sl. No": st.column_config.NumberColumn("Sl. No", disabled=True, width="small"),
                 "Reference": st.column_config.NumberColumn("Reference", help="Reference / gold-standard value"),
-                "Measured": st.column_config.NumberColumn("Measured", help="Value from the method under test"),
+                # Displayed as "Index"; the frame key stays "Measured" so the
+                # computation core and saved data are unaffected.
+                "Measured": st.column_config.NumberColumn("Index", help="Value from the index (test) method"),
             },
         )
         # Store full-precision numeric values (no dtype ambiguity from pasting).
@@ -552,7 +565,7 @@ def page_dashboard():
                 st.caption(
                     f"{lead} · Reference mean {vd['Reference'].mean():.2f} "
                     f"(min {vd['Reference'].min():.2f}, max {vd['Reference'].max():.2f}) · "
-                    f"Measured mean {vd['Measured'].mean():.2f}"
+                    f"Index mean {vd['Measured'].mean():.2f}"
                 )
             else:
                 st.caption(f"{lead} — tick rows to include them.")
@@ -566,11 +579,11 @@ def page_dashboard():
     with st.expander("Plot options — axis basis, title, labels"):
         oc = st.columns([1, 1.3, 1.3, 1.3])
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
-                                  help="Average = (Reference + Measured) / 2 (Bland–Altman).")
-        default_x = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
+                                  help="Average = (Reference + Index) / 2 (Bland–Altman).")
+        default_x = "Average (Reference + Index) / 2" if x_basis == "Average" else "Reference"
         title = oc[1].text_input("Plot title", value=f"Datta - Srivastava Plot - {param_name}")
         x_label = oc[2].text_input("X-axis label", value=default_x)
-        y_label = oc[3].text_input("Y-axis label", value="Difference (Measured - Reference)")
+        y_label = oc[3].text_input("Y-axis label", value="Difference (Index - Reference)")
 
     plot_box = st.container()
 
@@ -672,7 +685,7 @@ def page_dashboard():
                 if len(marked) == 1:
                     row = df_now.iloc[marked[0] - 1]
                     label = (f"Marked <b>Sl No {marked[0]}</b> &nbsp;·&nbsp; "
-                             f"Reference {row['Reference']:.2f}, Measured {row['Measured']:.2f}")
+                             f"Reference {row['Reference']:.2f}, Index {row['Measured']:.2f}")
                 else:
                     label = f"<b>{len(marked)} points marked</b> &nbsp;·&nbsp; Sl No {shown}"
                 cb = st.columns([2.4, 1, 1], vertical_alignment="center")

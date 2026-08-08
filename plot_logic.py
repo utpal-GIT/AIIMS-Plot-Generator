@@ -56,11 +56,12 @@ def generate_plot(
     type_above="Percentage Tolerance",
     title="Method Comparison",
     x_label=None,
-    y_label="Difference (Measured - Reference)",
+    y_label="Difference (Index - Reference)",
 ):
     """
     Build the method-comparison plot from a dataframe with columns
-    'Reference' and 'Measured'.
+    'Reference' and 'Measured' (the latter is surfaced to users as the
+    "Index" method; the key is kept for compatibility with stored data).
 
     x_basis == "Reference":  x = Reference        (original behaviour)
     x_basis == "Average":    x = (Reference + Measured) / 2   (Bland-Altman;
@@ -79,7 +80,7 @@ def generate_plot(
     df = df.dropna(subset=["Reference", "Measured"]).reset_index(drop=True)
 
     if len(df) < 3:
-        raise ValueError("Need at least 3 selected rows with both Reference and Measured "
+        raise ValueError("Need at least 3 selected rows with both Reference and Index "
                          "to fit a regression.")
 
     df["Diff"] = df["Measured"] - df["Reference"]
@@ -93,7 +94,7 @@ def generate_plot(
     df = df.sort_values(by="X").reset_index(drop=True)
 
     if x_label is None:
-        x_label = "Average (Reference + Measured) / 2" if x_basis == "Average" else "Reference"
+        x_label = "Average (Reference + Index) / 2" if x_basis == "Average" else "Reference"
 
     # ---- 2. Aggregate statistics (mean diff, LoA, CIs) ----
     mean_diff = df["Diff"].mean()
