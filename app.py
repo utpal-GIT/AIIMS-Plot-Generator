@@ -16,10 +16,23 @@ import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
 
+import streamlit.components.v1 as components
+
 import auth
 import config_store
 import report
 from plot_logic import generate_plot
+
+# Static component (plain HTML/JS, no build step) that renders the plot image
+# with a hit target per point and reports clicks back. Falls back to a
+# hover-only st.markdown rendering if it can't be declared.
+try:
+    _plot_click = components.declare_component(
+        "plot_click",
+        path=os.path.join(os.path.dirname(os.path.abspath(__file__)), "plot_click"),
+    )
+except Exception:
+    _plot_click = None
 
 st.set_page_config(page_title="Datta - Srivastava Plotter", page_icon="📊", layout="wide")
 
@@ -34,8 +47,8 @@ def _blank_data(n=6):
                          "Measured": pd.Series([np.nan] * n, dtype="float64")})
 
 
-def _plot_hover_html(result, dpi=150):
-    """Render the figure as a PNG with a hover target over each data point.
+def _plot_payload(result, dpi=150):
+    """Figure as a PNG data URI plus one hit target per plotted point.
 
     The matplotlib figure stays the single source of truth (the PNG/PDF exports
     are unchanged); targets are placed as percentages of the figure box so they
@@ -50,18 +63,27 @@ def _plot_hover_html(result, dpi=150):
 
     w_px, h_px = fig.get_size_inches() * fig.dpi
     ax = fig.axes[0]
-    spots = []
+    points = []
     for r in result.points.itertuples(index=False):
         px, py = ax.transData.transform((r.x, r.y))
         left, top = px / w_px * 100.0, (1.0 - py / h_px) * 100.0
         if not (0 <= left <= 100 and 0 <= top <= 100):
             continue                         # point clipped out of the axes
-        flip = " class='b'" if top < 14 else ""   # tooltip below when near the top
+        points.append({"sl": int(r.sl_no), "left": round(left, 4), "top": round(top, 4),
+                       "x": f"{r.x:.2f}", "y": f"{r.y:.2f}"})
+    return {"img": f"data:image/png;base64,{b64}", "points": points}
+
+
+def _plot_hover_html(payload):
+    """Static hover-only rendering — the fallback when the component is absent."""
+    spots = []
+    for p in payload["points"]:
+        flip = " class='b'" if p["top"] < 14 else ""
         spots.append(
-            f"<i{flip} style='left:{left:.4f}%;top:{top:.4f}%' "
-            f"data-tip='Sl No {int(r.sl_no)}  ·  ({r.x:.2f}, {r.y:.2f})'></i>"
+            f"<i{flip} style='left:{p['left']}%;top:{p['top']}%' "
+            f"data-tip='Sl No {p['sl']}  ·  ({p['x']}, {p['y']})'></i>"
         )
-    return (f"<div class='plothover'><img src='data:image/png;base64,{b64}'/>"
+    return (f"<div class='plothover'><img src='{payload['img']}'/>"
             + "".join(spots) + "</div>")
 
 
@@ -404,7 +426,7 @@ def page_dashboard():
         if clear_clicked:
             st.session_state["data_df"] = _blank_data()
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
-            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts"):
+            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts", "clicked_sl"):
                 st.session_state.pop(k, None)
             st.rerun()
 
@@ -575,12 +597,55 @@ def page_dashboard():
                 try:
                     if stale:
                         raise ValueError("plot predates hover support")
-                    st.markdown(_plot_hover_html(result), unsafe_allow_html=True)
-                    st.caption("Hover a point to see its Sl No and (X, Y) values.")
+                    payload = _plot_payload(result)
+                    if _plot_click is not None:
+                        clicked = _plot_click(img=payload["img"], points=payload["points"],
+                                              selected=st.session_state.get("clicked_sl"),
+                                              key="plotclick", default=None)
+                        # The component replays its last value on every rerun;
+                        # only act when the click id actually changes.
+                        if clicked and clicked.get("n") != st.session_state.get("click_n"):
+                            st.session_state["click_n"] = clicked.get("n")
+                            st.session_state["clicked_sl"] = clicked.get("sl")
+                            st.rerun()
+                        st.caption("Hover a point for its Sl No and (X, Y) — click one to remove it.")
+                    else:
+                        st.markdown(_plot_hover_html(payload), unsafe_allow_html=True)
+                        st.caption("Hover a point to see its Sl No and (X, Y) values.")
                 except Exception as e:
                     st.pyplot(result.fig, use_container_width=True)
-                    st.caption("Hover details unavailable — click **Generate plot** to rebuild."
-                               if stale else f"Hover details unavailable ({e}).")
+                    st.caption("Interactive plot unavailable — click **Generate plot** to rebuild."
+                               if stale else f"Interactive plot unavailable ({e}).")
+
+            # --- Confirm bar for a clicked point ---
+            sl = st.session_state.get("clicked_sl")
+            if sl is not None:
+                df_now = st.session_state["data_df"]
+                idx = sl - 1
+                valid = 0 <= idx < len(df_now)
+                cb = st.columns([2.4, 1, 1], vertical_alignment="center")
+                with cb[0]:
+                    if valid:
+                        row = df_now.iloc[idx]
+                        st.markdown(
+                            f"<div style='font-size:13px;color:#334155;'>Selected "
+                            f"<b>Sl No {sl}</b> &nbsp;·&nbsp; Reference {row['Reference']:.2f}, "
+                            f"Measured {row['Measured']:.2f}</div>",
+                            unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='font-size:13px;color:#94a3b8;'>"
+                                    "That row is no longer in the table.</div>",
+                                    unsafe_allow_html=True)
+                if cb[1].button("Deselect point", type="primary", use_container_width=True,
+                                disabled=not valid, key="drop_pt"):
+                    df_now.loc[df_now.index[idx], "Include"] = False
+                    st.session_state["data_df"] = df_now
+                    st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+                    st.session_state.pop("clicked_sl", None)
+                    st.rerun()
+                if cb[2].button("Cancel", use_container_width=True, key="drop_cancel"):
+                    st.session_state.pop("clicked_sl", None)
+                    st.rerun()
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)

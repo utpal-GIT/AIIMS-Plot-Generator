@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin:0; padding:0; background:transparent; }
+  #wrap { position:relative; width:100%; line-height:0; }
+  #wrap img { width:100%; display:block; }
+  /* transparent hit targets over each plotted point */
+  #wrap i { position:absolute; width:20px; height:20px; margin:-10px 0 0 -10px;
+            border-radius:50%; cursor:pointer; }
+  #wrap i:hover { background:rgba(37,99,235,.16);
+                  box-shadow:inset 0 0 0 1px rgba(37,99,235,.45); }
+  #wrap i.sel { background:rgba(220,38,38,.22);
+                box-shadow:inset 0 0 0 2px #dc2626; }
+  #wrap i:hover::after, #wrap i.sel::after {
+    content:attr(data-tip); position:absolute; left:50%; bottom:135%;
+    transform:translateX(-50%); background:#0f172a; color:#fff;
+    font-family:"Source Sans Pro","Segoe UI",sans-serif; font-size:11.5px;
+    font-weight:500; line-height:1.35; padding:5px 9px; border-radius:6px;
+    white-space:pre; z-index:30; pointer-events:none;
+    box-shadow:0 2px 8px rgba(0,0,0,.28); }
+  /* flip/clamp so the label can't be clipped by the iframe edges */
+  #wrap i.b:hover::after, #wrap i.b.sel::after { bottom:auto; top:135%; }
+  #wrap i.l:hover::after, #wrap i.l.sel::after { left:0; transform:none; }
+  #wrap i.r:hover::after, #wrap i.r.sel::after { left:auto; right:0; transform:none; }
+</style>
+</head>
+<body>
+<div id="wrap"></div>
+<script>
+  var wrap = document.getElementById("wrap");
+
+  function send(msg) {
+    msg.isStreamlitMessage = true;
+    window.parent.postMessage(msg, "*");
+  }
+
+  function setHeight() {
+    send({ type: "streamlit:setFrameHeight",
+           height: Math.ceil(wrap.getBoundingClientRect().height) });
+  }
+
+  function render(args) {
+    var pts = args.points || [];
+    var selected = args.selected;
+    wrap.innerHTML = "";
+
+    var img = document.createElement("img");
+    img.onload = setHeight;
+    img.src = args.img;
+    wrap.appendChild(img);
+
+    pts.forEach(function (p) {
+      var i = document.createElement("i");
+      i.style.left = p.left + "%";
+      i.style.top = p.top + "%";
+      var cls = [];
+      if (p.top < 14) cls.push("b");        // label would clip at the top
+      if (p.left < 12) cls.push("l");       // ...or at the left/right edge
+      else if (p.left > 88) cls.push("r");
+      if (selected !== null && selected === p.sl) cls.push("sel");
+      i.className = cls.join(" ");
+      i.setAttribute("data-tip", "Sl No " + p.sl + "  ·  (" + p.x + ", " + p.y + ")");
+      i.addEventListener("click", function () {
+        // Date.now() keeps the value distinct so repeat clicks still register.
+        send({ type: "streamlit:setComponentValue",
+               value: { sl: p.sl, n: Date.now() }, dataType: "json" });
+      });
+      wrap.appendChild(i);
+    });
+    setHeight();
+  }
+
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "streamlit:render") render(e.data.args || {});
+  });
+  window.addEventListener("resize", setHeight);
+
+  send({ type: "streamlit:componentReady", apiVersion: 1 });
+</script>
+</body>
+</html>
