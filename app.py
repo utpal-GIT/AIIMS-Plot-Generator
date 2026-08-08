@@ -59,7 +59,7 @@ def _plot_hover_html(result, dpi=150):
         flip = " class='b'" if top < 14 else ""   # tooltip below when near the top
         spots.append(
             f"<i{flip} style='left:{left:.4f}%;top:{top:.4f}%' "
-            f"data-tip='Sl. No {int(r.sl_no)}  ·  X {r.x:.2f}  ·  Y {r.y:.2f}'></i>"
+            f"data-tip='Sl No {int(r.sl_no)}  ·  ({r.x:.2f}, {r.y:.2f})'></i>"
         )
     return (f"<div class='plothover'><img src='data:image/png;base64,{b64}'/>"
             + "".join(spots) + "</div>")
@@ -576,7 +576,7 @@ def page_dashboard():
                     if stale:
                         raise ValueError("plot predates hover support")
                     st.markdown(_plot_hover_html(result), unsafe_allow_html=True)
-                    st.caption("Hover a point to see its Sl. No, X and Y.")
+                    st.caption("Hover a point to see its Sl No and (X, Y) values.")
                 except Exception as e:
                     st.pyplot(result.fig, use_container_width=True)
                     st.caption("Hover details unavailable — click **Generate plot** to rebuild."
