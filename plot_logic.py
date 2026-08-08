@@ -385,9 +385,10 @@ def generate_plot(
             # Match the legend: same font family, size 8.5, regular weight.
             children.append(TextArea(text, textprops=dict(color=color, fontsize=8.5, weight="normal")))
     box = VPacker(children=children, align="left", pad=2, sep=2.5)
-    # Anchored lower than the legend so there is a clear gap between the two.
-    anchored = AnchoredOffsetbox(loc="upper left", child=box, pad=0.5, borderpad=0,
-                                 frameon=True, bbox_to_anchor=(1.02, 0.48),
+    # Bottom-anchored so the box's lower border sits on the x-axis; it grows
+    # upward, which also keeps a clear gap below the legend.
+    anchored = AnchoredOffsetbox(loc="lower left", child=box, pad=0.5, borderpad=0,
+                                 frameon=True, bbox_to_anchor=(1.02, 0.0),
                                  bbox_transform=ax.transAxes)
     anchored.patch.set(facecolor="white", edgecolor="lightgray", alpha=0.9)
     ax.add_artist(anchored)
