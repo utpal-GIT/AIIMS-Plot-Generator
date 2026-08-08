@@ -391,6 +391,14 @@ def page_dashboard():
         st.session_state["data_df"] = store
         edited_df = store
 
+        # "Sl. No" is numbered from the frame passed *into* the editor, so rows
+        # the user pastes or adds come back blank. Re-render once with the
+        # merged frame to renumber. The editor key must change too, otherwise
+        # its pending "added rows" would be replayed on top and duplicate them.
+        if len(store) != len(base):
+            st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+            st.rerun()
+
         # Data fingerprint — compare this between upload and paste to confirm
         # the table holds exactly the same numbers as your file.
         vd = edited_df.dropna(subset=["Reference", "Measured"])
