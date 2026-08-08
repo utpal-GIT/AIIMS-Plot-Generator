@@ -168,8 +168,8 @@ st.markdown(
       /* Hover targets laid over the plot image (see _plot_hover_html) */
       .plothover{position:relative; width:100%; line-height:0;}
       .plothover img{width:100%; display:block;}
-      .plothover i{position:absolute; width:16px; height:16px;
-        margin:-8px 0 0 -8px; border-radius:50%; cursor:crosshair;}
+      .plothover i{position:absolute; width:20px; height:20px;
+        margin:-10px 0 0 -10px; border-radius:50%; cursor:crosshair;}
       .plothover i:hover{background:rgba(37,99,235,.16);
         box-shadow:inset 0 0 0 1px rgba(37,99,235,.45);}
       .plothover i:hover::after{content:attr(data-tip); position:absolute;
@@ -569,10 +569,18 @@ def page_dashboard():
             st.info("Enter data, then click **Generate plot** at the top.")
         else:
             with st.container(border=True, key="plotcard"):
+                # A result cached from before hover support has no .points; say
+                # so rather than silently dropping back to a static image.
+                stale = getattr(result, "points", None) is None
                 try:
+                    if stale:
+                        raise ValueError("plot predates hover support")
                     st.markdown(_plot_hover_html(result), unsafe_allow_html=True)
-                except Exception:
+                    st.caption("Hover a point to see its Sl. No, X and Y.")
+                except Exception as e:
                     st.pyplot(result.fig, use_container_width=True)
+                    st.caption("Hover details unavailable — click **Generate plot** to rebuild."
+                               if stale else f"Hover details unavailable ({e}).")
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)
