@@ -579,8 +579,8 @@ def page_dashboard():
     with st.expander("Plot options — axis basis, title, labels"):
         oc = st.columns([1, 1.3, 1.3, 1.3])
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
-                                  help="Average = (Reference + Index) / 2 (Bland–Altman).")
-        default_x = "Average (Reference + Index) / 2" if x_basis == "Average" else "Reference"
+                                  help="Average = (Index + Reference) / 2 (Bland–Altman).")
+        default_x = "Average (Index + Reference) / 2" if x_basis == "Average" else "Reference"
         title = oc[1].text_input("Plot title", value=f"Datta - Srivastava Plot - {param_name}")
         x_label = oc[2].text_input("X-axis label", value=default_x)
         y_label = oc[3].text_input("Y-axis label", value="Difference (Index - Reference)")

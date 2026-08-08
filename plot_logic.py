@@ -94,7 +94,7 @@ def generate_plot(
     df = df.sort_values(by="X").reset_index(drop=True)
 
     if x_label is None:
-        x_label = "Average (Reference + Index) / 2" if x_basis == "Average" else "Reference"
+        x_label = "Average (Index + Reference) / 2" if x_basis == "Average" else "Reference"
 
     # ---- 2. Aggregate statistics (mean diff, LoA, CIs) ----
     mean_diff = df["Diff"].mean()
