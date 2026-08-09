@@ -6,9 +6,9 @@ in the SAME backend as user accounts (Postgres row id=2 when DATABASE_URL is set
 else a local YAML file), reusing auth.py's DB plumbing.
 
 Configurations are private to each user, so the stored document is keyed by
-owner:
+owner — the signed-in Google email:
 {
-  "amenon": {
+  "a.menon@example.com": {
     "Glucose": {
       "unit": "mmol/L",
       "has_threshold": True,
@@ -21,9 +21,8 @@ owner:
   ...
 }
 
-Documents written before configurations became per-user are a flat
-{param: {...}} map; migrate_to_per_user() gives every existing user a copy of
-that shared set the first time it runs.
+Documents written under the old username identities are simply never read,
+since no one signs in under those keys any more.
 """
 
 import json
@@ -91,48 +90,14 @@ def _save_all(data):
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
-def _is_legacy(data):
-    """True for the pre-per-user shape {param: {...}}.
-
-    A per-user document nests one level deeper, so the first non-empty entry
-    settles it: a parameter's values are scalars, an owner's are dicts.
-    """
-    for value in data.values():
-        if not isinstance(value, dict):
-            return True
-        for inner in value.values():
-            return not isinstance(inner, dict)
-        # An empty dict is an owner with no parameters — inconclusive, keep going.
-    return False
-
-
-def migrate_to_per_user(usernames):
-    """One-time: hand every existing user a copy of the shared parameters.
-
-    Returns True when a migration was performed.
-    """
-    data = _load_all()
-    if not data or not _is_legacy(data):
-        return False
-    _save_all({u: {name: dict(p) for name, p in data.items()} for u in usernames})
-    return True
-
-
 def load_params(username):
     """This user's parameters only."""
-    data = _load_all()
-    if _is_legacy(data):
-        # Not migrated yet (no user list available here) — show the shared set
-        # rather than an empty table.
-        return dict(data)
-    owned = data.get(username)
+    owned = _load_all().get(username)
     return dict(owned) if isinstance(owned, dict) else {}
 
 
 def save_params(username, params):
     data = _load_all()
-    if _is_legacy(data):
-        data = {}
     data[username] = params
     _save_all(data)
 
@@ -140,7 +105,7 @@ def save_params(username, params):
 def rename_owner(old_username, new_username):
     """Follow a username change so the user keeps their configurations."""
     data = _load_all()
-    if _is_legacy(data) or old_username not in data:
+    if old_username not in data:
         return
     data[new_username] = data.pop(old_username)
     _save_all(data)
@@ -149,7 +114,7 @@ def rename_owner(old_username, new_username):
 def delete_owner(username):
     """Drop a deleted user's configurations."""
     data = _load_all()
-    if _is_legacy(data) or username not in data:
+    if username not in data:
         return
     del data[username]
     _save_all(data)

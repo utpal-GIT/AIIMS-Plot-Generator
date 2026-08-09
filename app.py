@@ -21,6 +21,7 @@ import streamlit.components.v1 as components
 import auth
 import config_store
 import report
+import usage
 from plot_logic import generate_plot
 
 # Static component (plain HTML/JS, no build step) that renders the plot image
@@ -311,6 +312,19 @@ def _avatar_color(key):
     return _AVATAR_PALETTE[i]
 
 
+def _fmt_ts(value):
+    """Compact local-ish timestamp for the admin table."""
+    if not value:
+        return "—"
+    try:
+        if isinstance(value, str):
+            from datetime import datetime
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return value.strftime("%d %b %Y %H:%M")
+    except Exception:
+        return str(value)[:16]
+
+
 def _role_badge(role_label):
     colors = {"Super admin": ("#dcfce7", "#16a34a"), "Admin": ("#dbeafe", "#2563eb"),
               "User": ("#f1f5f9", "#64748b")}
@@ -346,46 +360,44 @@ def _hide_sidebar():
 # ==========================================================================
 # Authentication gate  (branded, centered login / setup)
 # ==========================================================================
-config = auth.load_config()
-
-if auth.needs_setup(config):
+# Sign-in is Google only (Streamlit's native OIDC). Without an [auth] section
+# st.login() would raise, so say what is missing instead of crashing.
+if not auth.auth_configured():
     _hide_sidebar()
-    cols = st.columns([1, 1, 1])
+    cols = st.columns([1, 1.6, 1])
     with cols[1]:
-        _auth_brand("Welcome — create your administrator account", show_name=True)
-        with st.container(border=True):
-            auth.render_setup(config)
+        _auth_brand("Sign-in is not configured")
+        st.error(
+            "Google sign-in has not been set up for this deployment. An "
+            "administrator needs to add the `[auth]` and `[auth.google]` "
+            "sections to the app's secrets."
+        )
     st.stop()
 
-authenticator = auth.build_authenticator(config)
-
-if st.session_state.get("authentication_status") is not True:
+if not st.user.is_logged_in:
     _hide_sidebar()
-    cols = st.columns([1, 1, 1])
+    cols = st.columns([1, 1.2, 1])
     with cols[1]:
         _auth_brand("Sign in to continue")
-        flash = st.session_state.pop("_flash", None)
-        if flash:
-            st.success(flash)
         with st.container(border=True):
-            authenticator.login(location="main",
-                                fields={"Form name": "", "Login": "Sign in"})
-            if st.session_state.get("authentication_status") is False:
-                st.error("Incorrect username or password.")
-            else:
-                st.caption("Enter your credentials to access the dashboard.")
+            st.button("Continue with Google", type="primary", use_container_width=True,
+                      on_click=st.login, args=("google",))
+            st.caption("Any Google account can sign in.")
     st.stop()
 
-current_username = st.session_state.get("username")
-current_role = auth.role_of(config, current_username) or auth.ROLE_USER
-is_manager = auth.is_manager(current_role)
+current_username = (st.user.email or "").strip().lower()   # identity = email
+current_name = st.user.name or current_username
+current_picture = getattr(st.user, "picture", None)
 
-# Configurations used to be one shared set. The first session after this
-# change hands every existing user their own copy, so nobody loses a working
-# parameter; it is a no-op once the document is already per-user.
-if not st.session_state.get("_params_migrated"):
-    config_store.migrate_to_per_user(list(config["credentials"]["usernames"]))
-    st.session_state["_params_migrated"] = True
+# Record the sign-in once per session, then read the role back.
+if not st.session_state.get("_login_synced"):
+    auth.sync_login(current_username, name=current_name,
+                    sub=getattr(st.user, "sub", None), picture=current_picture)
+    usage.log_once(current_username, usage.LOGIN, "session")
+    st.session_state["_login_synced"] = True
+
+current_role = auth.role_of(current_username) or auth.ROLE_USER
+is_manager = auth.is_manager(current_role)
 
 
 # ==========================================================================
@@ -632,6 +644,10 @@ def page_dashboard():
             except Exception:
                 st.session_state["pdf_bytes"] = None
             st.session_state["pdf_name"] = f"Datta - Srivastava Report - {param_name}.pdf"
+            # Count only explicit Generate clicks — the live refresh below
+            # fires on every option tweak and would inflate the figure.
+            if generate:
+                usage.log(current_username, usage.GENERATE)
         except Exception as e:
             st.session_state["result"] = None
             st.session_state["error"] = str(e)
@@ -705,17 +721,24 @@ def page_dashboard():
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)
             bc = st.columns([1, 1, 2])
-            bc[0].download_button("Download plot (PNG)", png,
-                                  file_name=f"Datta - Srivastava Plot - {param_name}.png",
-                                  mime="image/png", icon=":material/image:",
-                                  use_container_width=True, key="dl_png")
+            got_png = bc[0].download_button(
+                "Download plot (PNG)", png,
+                file_name=f"Datta - Srivastava Plot - {param_name}.png",
+                mime="image/png", icon=":material/image:",
+                use_container_width=True, key="dl_png")
             pdf = st.session_state.get("pdf_bytes")
-            bc[1].download_button("Export report", data=pdf if pdf else b"",
-                                  file_name=st.session_state.get("pdf_name", "report.pdf"),
-                                  mime="application/pdf", disabled=pdf is None,
-                                  icon=":material/description:", use_container_width=True,
-                                  help=None if pdf else "Report unavailable — regenerate the plot",
-                                  key="dl_report_plot")
+            got_pdf = bc[1].download_button(
+                "Export report", data=pdf if pdf else b"",
+                file_name=st.session_state.get("pdf_name", "report.pdf"),
+                mime="application/pdf", disabled=pdf is None,
+                icon=":material/description:", use_container_width=True,
+                help=None if pdf else "Report unavailable — regenerate the plot",
+                key="dl_report_plot")
+            # download_button returns True on the click's rerun.
+            if got_png:
+                usage.log(current_username, usage.DOWNLOAD_PNG)
+            if got_pdf:
+                usage.log(current_username, usage.DOWNLOAD_PDF)
 
 
 def _tol_desc(value, tol_type):
@@ -924,76 +947,47 @@ def _param_dialog(params, editing):
     _dlg()
 
 
-@st.dialog("Add a user")
-def _add_user_dialog(roles_for_actor):
-    with st.form("add_user_dialog_form"):
-        c = st.columns(2)
-        new_name = c[0].text_input("Full name")
-        new_email = c[1].text_input("Email (optional)")
-        c2 = st.columns(2)
-        new_username = c2[0].text_input("Username", help="3+ chars: letters, numbers, . _ -")
-        new_role = c2[1].selectbox("Role", roles_for_actor,
-                                   format_func=lambda r: auth.ROLE_LABELS[r])
-        new_pw = st.text_input("Temporary password", type="password",
-                               help=f"At least {auth.MIN_PASSWORD_LEN} characters")
-        submitted = st.form_submit_button("Add user", type="primary")
-    if submitted:
-        ok, msg = auth.add_user(config, new_username, new_name, new_email, new_pw,
-                                role=new_role, actor_role=current_role)
-        if ok:
-            st.rerun()
-        else:
-            st.error(msg)
-
-
+# Accounts appear on first Google sign-in, so there is no "add user" flow —
+# an administrator only changes a role or removes an account.
 @st.dialog("Manage user")
 def _manage_user_dialog(user, roles_for_actor):
     st.markdown(
-        f"<div style='font-weight:600; color:#0f172a;'>{user['name']}</div>"
-        f"<div class='mono' style='font-size:12px;'>{user['username']}</div>",
+        f"<div style='font-weight:600; color:#0f172a;'>{user.get('name') or '—'}</div>"
+        f"<div class='mono' style='font-size:12px;'>{user['email']}</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-    st.markdown("**Reset password**")
-    with st.form("reset_pw_dialog_form", clear_on_submit=True):
-        r_pw = st.text_input("New password", type="password",
-                             help=f"At least {auth.MIN_PASSWORD_LEN} characters")
-        if st.form_submit_button("Reset password", type="primary"):
-            ok, msg = auth.reset_password(config, user["username"], r_pw,
-                                          actor_role=current_role)
-            (st.success if ok else st.error)(msg)
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     if len(roles_for_actor) > 1:
-        st.divider()
         st.markdown("**Change role**")
-        cur_key = next((k for k, v in auth.ROLE_LABELS.items() if v == user["role"]),
-                       auth.ROLE_USER)
+        cur_key = user.get("role") or auth.ROLE_USER
         idx = roles_for_actor.index(cur_key) if cur_key in roles_for_actor else 0
         with st.form("role_dialog_form"):
             g_role = st.selectbox("Role", roles_for_actor, index=idx,
                                   format_func=lambda r: auth.ROLE_LABELS[r])
-            if st.form_submit_button("Update role"):
-                ok, msg = auth.set_role(config, user["username"], g_role,
-                                        actor_role=current_role)
+            if st.form_submit_button("Update role", type="primary"):
+                ok, msg = auth.set_role(user["email"], g_role, actor_role=current_role)
                 if ok:
                     st.rerun()
                 else:
                     st.error(msg)
+    else:
+        st.caption("You can't change roles at your permission level.")
 
 
 @st.dialog("Delete user")
 def _delete_user_dialog(user):
-    st.warning(f"Permanently delete **{user['name']}** ({user['username']})? "
-               "This cannot be undone.")
+    st.warning(f"Permanently delete **{user.get('name') or user['email']}** "
+               f"({user['email']})? This also removes their saved parameters. "
+               "They can sign in again with Google, starting fresh.")
     c = st.columns(2)
     if c[0].button("Cancel", use_container_width=True):
         st.rerun()
     if c[1].button("Delete user", type="primary", use_container_width=True):
-        ok, msg = auth.delete_user(config, user["username"], current_username,
+        ok, msg = auth.delete_user(user["email"], current_username,
                                    actor_role=current_role)
         if ok:
-            config_store.delete_owner(user["username"])   # drop their parameters too
+            config_store.delete_owner(user["email"])   # drop their parameters too
             st.rerun()
         else:
             st.error(msg)
@@ -1062,7 +1056,7 @@ def page_account():
         )
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        name = st.session_state.get("name", "")
+        name = current_name
         role_label = auth.ROLE_LABELS.get(current_role, current_role)
 
         # ---- Profile card (larger avatar centered against name+username block) ----
@@ -1086,63 +1080,26 @@ def page_account():
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        # ---- Profile (display name + username) ----
+        # ---- Sign-in details (owned by Google, nothing to edit here) ----
         with st.container(border=True, key="acctedit"):
-            st.markdown("**Profile details**")
-            st.caption("Your display name and sign-in username.")
-            with st.form("profile_form"):
-                ec = st.columns(2)
-                new_name = ec[0].text_input("Display name", value=name)
-                new_un = ec[1].text_input("Username", value=current_username)
-                bc = st.columns([1, 2.4], vertical_alignment="center")
-                with bc[0]:
-                    saved = st.form_submit_button("Save changes", type="primary")
-                with bc[1]:
-                    st.caption("Changing your username changes how you sign in.")
-            if saved:
-                un_changed = new_un.strip() != current_username
-                name_changed = new_name.strip() != name and new_name.strip()
-                if un_changed:
-                    if name_changed:
-                        auth.change_display_name(config, current_username, new_name)
-                    ok, msg = auth.change_username(config, current_username, new_un)
-                    if ok:
-                        # Configurations are keyed by username, so move them too.
-                        config_store.rename_owner(current_username, new_un.strip())
-                        st.session_state["_flash"] = "Username updated — please sign in with your new username."
-                        authenticator.logout(location="unrendered")
-                        for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
-                            st.session_state.pop(k, None)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                elif name_changed:
-                    ok, msg = auth.change_display_name(config, current_username, new_name)
-                    if ok:
-                        st.session_state["name"] = new_name.strip()
-                        st.success("Profile updated.")
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.info("No changes to save.")
-
-        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
-        # ---- Change password ----
-        with st.container(border=True, key="acctpw"):
-            st.markdown("**Change password**")
-            with st.form("change_pw", clear_on_submit=True):
-                old = st.text_input("Current password", type="password")
-                new1 = st.text_input("New password", type="password")
-                new2 = st.text_input("Confirm new password", type="password")
-                saved_pw = st.form_submit_button("Update password", type="primary")
-            if saved_pw:
-                if new1 != new2:
-                    st.error("New passwords do not match.")
-                else:
-                    ok, msg = auth.change_own_password(config, current_username, old, new1)
-                    (st.success if ok else st.error)(msg)
+            st.markdown("**Sign-in**")
+            st.caption("Your name and email come from your Google account, so "
+                       "they are changed there rather than here. This app never "
+                       "sees or stores a password.")
+            st.markdown(
+                "<div style='display:flex; gap:34px; margin-top:6px;'>"
+                f"<div><div class='scl'>Signed in with</div>"
+                f"<div style='font-size:14px;color:#334155;'>Google</div></div>"
+                f"<div><div class='scl'>Email</div>"
+                f"<div class='mono' style='font-size:14px;'>{current_username}</div></div>"
+                f"<div><div class='scl'>Role</div>"
+                f"<div style='font-size:14px;color:#334155;'>{role_label}</div></div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+            st.button("Sign out", icon=":material/logout:", on_click=st.logout,
+                      key="acct_signout")
 
 
 def page_settings():
@@ -1156,61 +1113,98 @@ def page_settings():
         return
 
     roles_for_actor = auth.assignable_roles(current_role)
-    targets = set(auth.manageable_usernames(config, current_role))
     if current_role == auth.ROLE_SUPERADMIN:
-        sub = ("User administration — you can manage all users, "
-               "including admins and super admins.")
+        sub = ("Users and usage — accounts appear here on their first Google "
+               "sign-in.")
     else:
-        sub = "User administration — you can manage regular users."
+        sub = "Users and usage — you can manage regular users."
 
-    hc = st.columns([5, 1.4], vertical_alignment="center")
-    with hc[0]:
-        st.markdown(f"<div class='dash-title'>Settings</div>"
-                    f"<div class='dash-sub'>{sub}</div>", unsafe_allow_html=True)
-    with hc[1]:
-        add_clicked = st.button("Add user", icon=":material/add:", type="primary",
-                                use_container_width=True)
+    st.markdown(f"<div class='dash-title'>Settings</div>"
+                f"<div class='dash-sub'>{sub}</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+    users = auth.list_users()
+    counts = usage.counts_by_user()
+    t_all = usage.totals()
+
+    # ---- Usage at a glance ----
+    kpis = [
+        _stat_card("Users", str(len(users)), f"{usage.active_users(30)} active in 30 days"),
+        _stat_card("Sign-ins", str(t_all.get(usage.LOGIN, 0))),
+        _stat_card("Plots generated", str(t_all.get(usage.GENERATE, 0))),
+        _stat_card("Downloads", str(t_all.get(usage.DOWNLOAD_PNG, 0)
+                                    + t_all.get(usage.DOWNLOAD_PDF, 0)),
+                   f"{t_all.get(usage.DOWNLOAD_PNG, 0)} plots · "
+                   f"{t_all.get(usage.DOWNLOAD_PDF, 0)} reports"),
+    ]
+    st.markdown("<div class='grid2'>" + "".join(kpis) + "</div>", unsafe_allow_html=True)
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Per-column layout; the avatar is an inline element so the name cell is
-    # p-wrapped like the value cells and everything shares one baseline.
-    COLS = [2.6, 2, 1.4, 0.5, 0.5]
+    COLS = [2.9, 1.1, 1.25, 0.75, 0.8, 0.7, 0.7, 0.45, 0.45]
     manage_target = None
     delete_target = None
 
-    # ---- Users table ----
+    # ---- Users + their activity ----
     with st.container(border=True, key="usertable"):
         head = st.columns(COLS)
-        for col, title in zip(head, ["Name", "Username", "Role", "", ""]):
+        for col, title in zip(head, ["User", "Role", "Last login", "Logins",
+                                     "Plots", "PNG", "PDF", "", ""]):
             col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
-        for u in auth.list_users(config):
+        if not users:
+            st.caption("No one has signed in yet.")
+        for u in users:
+            email = u["email"]
+            c = counts.get(email, {})
             r = st.columns(COLS, vertical_alignment="center")
-            bg, fg = _avatar_color(u["username"])
+            bg, fg = _avatar_color(email)
             r[0].markdown(
                 f"<span style='display:inline-flex; vertical-align:middle; width:34px; "
                 f"height:34px; border-radius:50%; background:{bg}; color:{fg}; "
                 f"align-items:center; justify-content:center; font-weight:600; "
-                f"font-size:12px;'>{_initials(u['name'])}</span>"
-                f"<span style='vertical-align:middle; margin-left:10px; font-weight:600; "
-                f"color:#0f172a;'>{u['name']}</span>",
+                f"font-size:12px;'>{_initials(u.get('name') or email)}</span>"
+                f"<span style='vertical-align:middle; margin-left:10px;'>"
+                f"<span style='font-weight:600; color:#0f172a;'>{u.get('name') or '—'}</span>"
+                f"<br><span class='mono' style='font-size:12px;'>{email}</span></span>",
                 unsafe_allow_html=True,
             )
-            r[1].markdown(f"<span class='mono'>{u['username']}</span>", unsafe_allow_html=True)
-            r[2].markdown(_role_badge(u["role"]), unsafe_allow_html=True)
-            if u["username"] in targets:
-                if r[3].button("", icon=":material/key:", key=f"sett_reset_{u['username']}",
-                               help="Reset password / role"):
+            r[1].markdown(_role_badge(auth.ROLE_LABELS.get(u.get("role"), "User")),
+                          unsafe_allow_html=True)
+            r[2].markdown(f"<span class='mono'>{_fmt_ts(u.get('last_login'))}</span>",
+                          unsafe_allow_html=True)
+            r[3].markdown(f"<span class='mono'>{u.get('login_count', 0)}</span>",
+                          unsafe_allow_html=True)
+            r[4].markdown(f"<span class='mono'>{c.get(usage.GENERATE, 0)}</span>",
+                          unsafe_allow_html=True)
+            r[5].markdown(f"<span class='mono'>{c.get(usage.DOWNLOAD_PNG, 0)}</span>",
+                          unsafe_allow_html=True)
+            r[6].markdown(f"<span class='mono'>{c.get(usage.DOWNLOAD_PDF, 0)}</span>",
+                          unsafe_allow_html=True)
+            if auth.can_manage_target(current_role, u.get("role") or auth.ROLE_USER):
+                if r[7].button("", icon=":material/manage_accounts:",
+                               key=f"sett_role_{email}", help="Change role"):
                     manage_target = u
-                is_self = u["username"] == current_username
-                if r[4].button("", icon=":material/delete:", key=f"sett_del_{u['username']}",
+                is_self = email == current_username
+                if r[8].button("", icon=":material/delete:", key=f"sett_del_{email}",
                                help=("You can't delete your own account" if is_self else "Delete"),
                                disabled=is_self):
                     delete_target = u
 
+    # ---- Export ----
+    rows = [{"email": u["email"], "name": u.get("name"), "role": u.get("role"),
+             "first_login": u.get("first_login"), "last_login": u.get("last_login"),
+             "logins": u.get("login_count", 0),
+             "generations": counts.get(u["email"], {}).get(usage.GENERATE, 0),
+             "plot_downloads": counts.get(u["email"], {}).get(usage.DOWNLOAD_PNG, 0),
+             "report_downloads": counts.get(u["email"], {}).get(usage.DOWNLOAD_PDF, 0)}
+            for u in users]
+    if rows:
+        st.download_button("Export usage (CSV)",
+                           pd.DataFrame(rows).to_csv(index=False).encode(),
+                           file_name="datta-srivastava-usage.csv", mime="text/csv",
+                           icon=":material/download:", key="dl_usage")
+
     # ---- Modals ----
-    if add_clicked:
-        _add_user_dialog(roles_for_actor)
-    elif manage_target:
+    if manage_target:
         _manage_user_dialog(manage_target, roles_for_actor)
     elif delete_target:
         _delete_user_dialog(delete_target)
@@ -1248,29 +1242,22 @@ with st.sidebar:
 
     # Bottom section (pinned to the sidebar bottom): logout + user card
     with st.container(key="sbbottom"):
-        logout_clicked = st.button("Logout", icon=":material/logout:",
-                                   use_container_width=True, key="logout_btn")
+        st.button("Logout", icon=":material/logout:", use_container_width=True,
+                  key="logout_btn", on_click=st.logout)
         st.markdown("<div style='border-top:1px solid #e5e7eb; margin:8px 0 10px;'></div>",
                     unsafe_allow_html=True)
-        initials = _initials(st.session_state.get("name", ""))
         st.markdown(
             "<div style='display:flex; align-items:center; gap:10px;'>"
             f"<div style='width:38px; height:38px; border-radius:50%; background:#dcfce7; "
             f"color:#16a34a; display:flex; align-items:center; justify-content:center; "
-            f"font-weight:600; font-size:13px; flex:none;'>{initials}</div>"
+            f"font-weight:600; font-size:13px; flex:none;'>{_initials(current_name)}</div>"
             "<div style='line-height:1.2; min-width:0;'>"
             f"<div style='font-size:14px; font-weight:600; color:#1f2937; white-space:nowrap; "
-            f"overflow:hidden; text-overflow:ellipsis;'>{st.session_state.get('name')}</div>"
+            f"overflow:hidden; text-overflow:ellipsis;'>{current_name}</div>"
             f"<div style='font-size:12px; color:#94a3b8;'>{auth.ROLE_LABELS.get(current_role, current_role)}</div>"
             "</div></div>",
             unsafe_allow_html=True,
         )
-
-if logout_clicked:
-    authenticator.logout(location="unrendered")
-    for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
-        st.session_state.pop(k, None)
-    st.rerun()
 
 if selected == "Dashboard":
     page_dashboard()
