@@ -379,19 +379,25 @@ if not st.user.is_logged_in:
     with cols[1]:
         _auth_brand("Sign in to continue")
         with st.container(border=True):
-            st.button("Continue with Google", type="primary", use_container_width=True,
-                      on_click=st.login, args=("google",))
+            # st.login() must run during the script pass so it can issue the
+            # redirect — calling it from an on_click callback does not.
+            if st.button("Continue with Google", type="primary",
+                         use_container_width=True):
+                st.login("google")
             st.caption("Any Google account can sign in.")
     st.stop()
 
-current_username = (st.user.email or "").strip().lower()   # identity = email
-current_name = st.user.name or current_username
-current_picture = getattr(st.user, "picture", None)
+# Read the claims as a plain dict: attribute access on a missing claim
+# (picture and sub are not guaranteed) is not safe to assume.
+_claims = st.user.to_dict() if hasattr(st.user, "to_dict") else dict(st.user)
+current_username = (_claims.get("email") or "").strip().lower()   # identity = email
+current_name = _claims.get("name") or current_username
+current_picture = _claims.get("picture")
 
 # Record the sign-in once per session, then read the role back.
 if not st.session_state.get("_login_synced"):
     auth.sync_login(current_username, name=current_name,
-                    sub=getattr(st.user, "sub", None), picture=current_picture)
+                    sub=_claims.get("sub"), picture=current_picture)
     usage.log_once(current_username, usage.LOGIN, "session")
     st.session_state["_login_synced"] = True
 
@@ -1097,8 +1103,8 @@ def page_account():
                 unsafe_allow_html=True,
             )
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-            st.button("Sign out", icon=":material/logout:", on_click=st.logout,
-                      key="acct_signout")
+            if st.button("Sign out", icon=":material/logout:", key="acct_signout"):
+                st.logout()
 
 
 def page_settings():
@@ -1237,8 +1243,9 @@ with st.sidebar:
 
     # Bottom section (pinned to the sidebar bottom): logout + user card
     with st.container(key="sbbottom"):
-        st.button("Logout", icon=":material/logout:", use_container_width=True,
-                  key="logout_btn", on_click=st.logout)
+        if st.button("Logout", icon=":material/logout:", use_container_width=True,
+                     key="logout_btn"):
+            st.logout()
         st.markdown("<div style='border-top:1px solid #e5e7eb; margin:8px 0 10px;'></div>",
                     unsafe_allow_html=True)
         st.markdown(
