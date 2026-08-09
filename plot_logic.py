@@ -371,18 +371,18 @@ def generate_plot(
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
         ("", None),
-        ("REGRESSION LINE (95% CI)", C_HEAD),
+        ("REGRESSION LINE (95% CI)", C_HEAD, "bold"),
         (f"Slope: {slope:.4f}  [{s_lo:.4f}, {s_hi:.4f}]", c_slope),
         (f"Intercept: {int_val:.3f}  [{i_lo:.3f}, {i_hi:.3f}]", c_int),
         ("", None),
-        ("OVERALL SUMMARY", C_HEAD),
+        ("OVERALL SUMMARY", C_HEAD, "bold"),
         (f"Overall plot range: {data_range_text}", C_NEUTRAL),
         (f"Total data points: {n_total}", C_NEUTRAL),
         (f"Outliers: {ov['outliers_n']} ({ov['outliers_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Overestimated: {ov['over_n']} ({ov['over_pct']:.1f}%)", C_NEUTRAL),
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
-        ("VALID RANGE SUMMARY", C_HEAD),
+        ("VALID RANGE SUMMARY", C_HEAD, "bold"),
         (f"Valid measurable range: {min_text} – {max_text}", C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
@@ -392,12 +392,14 @@ def generate_plot(
         ("(all % are of total data points)", C_MUTE),
     ]
     children = []
-    for text, color in lines:
+    for entry in lines:
+        text, color = entry[0], entry[1]
+        weight = entry[2] if len(entry) > 2 else "normal"   # section headings are bold
         if text == "":
             children.append(TextArea(" ", textprops=dict(fontsize=4)))
         else:
-            # Match the legend: same font family, size 8.5, regular weight.
-            children.append(TextArea(text, textprops=dict(color=color, fontsize=8.5, weight="normal")))
+            # Match the legend: same font family, size 8.5.
+            children.append(TextArea(text, textprops=dict(color=color, fontsize=8.5, weight=weight)))
     box = VPacker(children=children, align="left", pad=2, sep=2.5)
     # Bottom-anchored so the box's lower border sits on the x-axis; it grows
     # upward, which also keeps a clear gap below the legend.
