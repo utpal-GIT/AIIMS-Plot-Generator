@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <style>
   html, body { margin:0; padding:0; background:transparent; }
+  #stage { position:relative; width:100%; }
   #wrap { position:relative; width:100%; line-height:0; }
   #wrap img { width:100%; display:block; }
   /* transparent hit targets over each plotted point */
@@ -26,22 +27,98 @@
   #wrap i.b:hover::after { bottom:auto; top:135%; }
   #wrap i.l:hover::after { left:0; transform:none; }
   #wrap i.r:hover::after { left:auto; right:0; transform:none; }
+
+  /* full-screen control */
+  #fs { position:absolute; top:8px; right:8px; z-index:40; display:flex;
+        align-items:center; gap:6px; padding:4px 9px; cursor:pointer;
+        font-family:"Source Sans Pro","Segoe UI",sans-serif; font-size:11.5px;
+        font-weight:500; color:#475569; background:rgba(255,255,255,.86);
+        border:1px solid #e2e8f0; border-radius:6px; line-height:1;
+        opacity:0; transition:opacity .15s; }
+  #stage:hover #fs, #fs:focus { opacity:1; }
+  #fs:hover { color:#0f172a; border-color:#cbd5e1; background:#fff; }
+
+  /* In full screen keep #wrap exactly the image's box, so the percentage-
+     positioned hit targets stay aligned with the markers. */
+  #stage:fullscreen { background:#fff; display:flex;
+                      align-items:center; justify-content:center; }
+  #stage:fullscreen #wrap { width:min(100vw, calc(100vh * var(--ar, 1.85))); }
+  #stage:fullscreen #fs { opacity:1; }
 </style>
 </head>
 <body>
-<div id="wrap"></div>
+<div id="stage">
+  <div id="wrap"></div>
+  <button id="fs" type="button" aria-label="Toggle full screen">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
+    </svg><span id="fslabel">Full screen</span>
+  </button>
+</div>
 <script>
-  var wrap = document.getElementById("wrap");
+  var stage = document.getElementById("stage");
+  var wrap  = document.getElementById("wrap");
+  var fsBtn = document.getElementById("fs");
+  var fsLbl = document.getElementById("fslabel");
 
   function send(msg) {
     msg.isStreamlitMessage = true;
     window.parent.postMessage(msg, "*");
   }
 
+  // True for either route below. The second promotes the iframe element, in
+  // which case this document is not itself full screen, so also compare the
+  // viewport against the screen.
+  function isFullscreen() {
+    if (document.fullscreenElement) return true;
+    var sw = screen.width || 0, sh = screen.height || 0;
+    return sh > 0 && window.innerHeight >= sh * 0.9 && window.innerWidth >= sw * 0.9;
+  }
+
   function setHeight() {
+    // While full screen the element is promoted out of normal flow; reporting
+    // that height would blow up the iframe in the page behind it.
+    if (isFullscreen()) return;
     send({ type: "streamlit:setFrameHeight",
            height: Math.ceil(wrap.getBoundingClientRect().height) });
   }
+
+  function promoteIframe() {
+    // Same-origin fallback: fullscreen the iframe element from the parent.
+    try {
+      var fe = window.frameElement;
+      if (fe && fe.requestFullscreen) fe.requestFullscreen();
+    } catch (e) {}
+  }
+
+  fsBtn.addEventListener("click", function () {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    try {
+      if (window.parent.document.fullscreenElement) {
+        window.parent.document.exitFullscreen(); return;
+      }
+    } catch (e) {}
+    if (!stage.requestFullscreen) { promoteIframe(); return; }
+    try {
+      // requestFullscreen can reject *or* throw synchronously depending on
+      // how the embedding page is configured, so handle both.
+      var p = stage.requestFullscreen();
+      if (p && p.catch) p.catch(promoteIframe);
+    } catch (e) {
+      promoteIframe();
+    }
+  });
+
+  function onFsChange() {
+    var on = isFullscreen();
+    fsLbl.textContent = on ? "Exit full screen" : "Full screen";
+    if (!on) setHeight();          // restore the in-page height on exit
+  }
+  document.addEventListener("fullscreenchange", onFsChange);
+  try {                            // catches the promote-the-iframe route
+    window.parent.document.addEventListener("fullscreenchange", onFsChange);
+  } catch (e) {}
 
   function render(args) {
     var pts = args.points || [];
@@ -49,7 +126,13 @@
     wrap.innerHTML = "";
 
     var img = document.createElement("img");
-    img.onload = setHeight;
+    img.onload = function () {
+      // Aspect ratio drives the full-screen sizing above.
+      if (img.naturalHeight) {
+        wrap.style.setProperty("--ar", img.naturalWidth / img.naturalHeight);
+      }
+      setHeight();
+    };
     img.src = args.img;
     wrap.appendChild(img);
 
