@@ -1261,10 +1261,21 @@ with st.sidebar:
         f"padding:0 2px 6px;'>MENU</div>",
         unsafe_allow_html=True,
     )
+    # Settings is admin-only, so it is not offered at all to a regular user.
+    nav_options = ["Dashboard", "Configurations", "Account"]
+    nav_icons = ["speedometer2", "sliders", "person"]
+    if is_manager:
+        nav_options.append("Settings")
+        nav_icons.append("gear")
+    elif st.session_state.get("nav") == "Settings":
+        # They were on Settings and have since been demoted — the stored
+        # selection is no longer one of the options.
+        st.session_state["nav"] = "Dashboard"
+
     selected = option_menu(
         menu_title=None,
-        options=["Dashboard", "Configurations", "Account", "Settings"],
-        icons=["speedometer2", "sliders", "person", "gear"],
+        options=nav_options,
+        icons=nav_icons,
         default_index=0,
         key="nav",
         styles={
