@@ -882,9 +882,23 @@ def _render_statistics(s, excluded_n=0):
 
 
 def _param_dialog(params, editing):
+    # Bumped once per opening. _dlg re-runs on every interaction while the
+    # dialog is up, so this is what tells us "the dialog was just opened".
+    open_id = st.session_state.get("_cfg_open_id", 0) + 1
+    st.session_state["_cfg_open_id"] = open_id
+
     @st.dialog("Edit parameter" if editing else "Add parameter", width="large")
     def _dlg():
         preset = params.get(editing, {}) if editing else {}
+
+        # The two "Type" selects are otherwise identical — same label, options
+        # and format_func — so when a parameter uses the same tolerance type
+        # above and below, their auto-generated ids collide and Streamlit
+        # raises. Distinct keys avoid that; suffixing with open_id keeps them
+        # fresh per opening, so `index` still sets the stored value (a key that
+        # already exists in session state would win over it).
+        k = f"_{open_id}"
+
         st.caption("Private to your account and applied on your Dashboard.")
         # Mode selector is OUTSIDE the form so the fields update live.
         MODES = ["Threshold-based (below / above)", "Single tolerance (value / % bias)"]
@@ -908,27 +922,30 @@ def _param_dialog(params, editing):
                     st.markdown("<div class='scl'>Below threshold</div>", unsafe_allow_html=True)
                     bc = st.columns(2)
                     val_below_s = bc[0].text_input("Value", value=_fmt(preset.get("val_below", 0.15)),
-                                                   key="tb_below")
-                    type_below = bc[1].selectbox("Type", TOL_OPTIONS,
-                                                 index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
-                                                 format_func=lambda t: t.split()[0])
+                                                   key="tb_below" + k)
+                    type_below = bc[1].selectbox(
+                        "Type", TOL_OPTIONS, key="cfg_type_below" + k,
+                        index=TOL_OPTIONS.index(preset.get("type_below", TOL_OPTIONS[0])),
+                        format_func=lambda t: t.split()[0])
                 with g[1], st.container(border=True, key="abovecard"):
                     st.markdown("<div class='scl'>Above threshold</div>", unsafe_allow_html=True)
                     ac = st.columns(2)
                     val_above_s = ac[0].text_input("Value", value=_fmt(preset.get("val_above", 15.0)),
-                                                   key="tb_above")
-                    type_above = ac[1].selectbox("Type", TOL_OPTIONS,
-                                                 index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
-                                                 format_func=lambda t: t.split()[0])
+                                                   key="tb_above" + k)
+                    type_above = ac[1].selectbox(
+                        "Type", TOL_OPTIONS, key="cfg_type_above" + k,
+                        index=TOL_OPTIONS.index(preset.get("type_above", TOL_OPTIONS[1])),
+                        format_func=lambda t: t.split()[0])
             else:
                 st.caption("A single tolerance applied across the whole range — no threshold.")
                 tc = st.columns(2)
                 default_val = preset.get("val", preset.get("val_below", 0.15))
-                default_type = preset.get("type", preset.get("type_below", TOL_OPTIONS[0]))
                 val_s = tc[0].text_input("Tolerance value", value=_fmt(default_val))
-                tol_type = tc[1].selectbox("Type", TOL_OPTIONS,
-                                           index=TOL_OPTIONS.index(default_type),
-                                           format_func=lambda t: t.split()[0])
+                default_type = preset.get("type", preset.get("type_below", TOL_OPTIONS[0]))
+                tol_type = tc[1].selectbox(
+                    "Type", TOL_OPTIONS, key="cfg_type_single" + k,
+                    index=TOL_OPTIONS.index(default_type),
+                    format_func=lambda t: t.split()[0])
             saved = st.form_submit_button("Save parameter", type="primary", use_container_width=True)
         if saved:
             def _num(s, field):
