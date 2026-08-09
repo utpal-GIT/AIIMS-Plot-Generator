@@ -380,12 +380,19 @@ current_username = st.session_state.get("username")
 current_role = auth.role_of(config, current_username) or auth.ROLE_USER
 is_manager = auth.is_manager(current_role)
 
+# Configurations used to be one shared set. The first session after this
+# change hands every existing user their own copy, so nobody loses a working
+# parameter; it is a no-op once the document is already per-user.
+if not st.session_state.get("_params_migrated"):
+    config_store.migrate_to_per_user(list(config["credentials"]["usernames"]))
+    st.session_state["_params_migrated"] = True
+
 
 # ==========================================================================
 # Pages
 # ==========================================================================
 def page_dashboard():
-    params = config_store.load_params()
+    params = config_store.load_params(current_username)
 
     # ---- Header ----
     st.markdown(
@@ -881,7 +888,7 @@ def _param_dialog(params, editing):
                         st.error(e)
                     return
                 ok, msg = config_store.upsert_param(
-                    params, name, unit=unit, has_threshold=True, threshold=threshold,
+                    current_username, params, name, unit=unit, has_threshold=True, threshold=threshold,
                     val_below=val_below, type_below=type_below,
                     val_above=val_above, type_above=type_above)
             else:
@@ -890,7 +897,7 @@ def _param_dialog(params, editing):
                     st.error(e)
                     return
                 ok, msg = config_store.upsert_param(
-                    params, name, unit=unit, has_threshold=False,
+                    current_username, params, name, unit=unit, has_threshold=False,
                     val=val, tol_type=tol_type)
             if ok:
                 st.rerun()
@@ -969,6 +976,7 @@ def _delete_user_dialog(user):
         ok, msg = auth.delete_user(config, user["username"], current_username,
                                    actor_role=current_role)
         if ok:
+            config_store.delete_owner(user["username"])   # drop their parameters too
             st.rerun()
         else:
             st.error(msg)
@@ -980,18 +988,15 @@ def page_configurations():
         st.markdown(
             "<div class='dash-title'>Configurations</div>"
             "<div class='dash-sub'>Define test parameters and their tolerance limits — "
-            "shared across the lab and applied on the Dashboard.</div>",
+            "private to your account and applied on your Dashboard.</div>",
             unsafe_allow_html=True,
         )
     with hc[1]:
-        if is_manager:
-            add_clicked = st.button("Add parameter", icon=":material/add:", type="primary",
-                                    use_container_width=True)
-        else:
-            add_clicked = False
+        add_clicked = st.button("Add parameter", icon=":material/add:", type="primary",
+                                use_container_width=True)
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    params = config_store.load_params()
+    params = config_store.load_params(current_username)
     COLS = [2, 1.3, 1.1, 1.4, 1.4, 0.45, 0.45]
     edit_target = None
 
@@ -1001,8 +1006,7 @@ def page_configurations():
         for col, title in zip(head, ["Parameter", "Unit", "Threshold", "Below tol.", "Above tol.", "", ""]):
             col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
         if not params:
-            st.caption('No parameters yet — click "Add parameter".' if is_manager
-                       else "No parameters configured yet.")
+            st.caption('No parameters yet — click "Add parameter".')
         for name, p in params.items():
             r = st.columns(COLS, vertical_alignment="center")
             if config_store.has_threshold(p):
@@ -1018,17 +1022,16 @@ def page_configurations():
             r[2].markdown(f"<span class='mono'>{thr}</span>", unsafe_allow_html=True)
             r[3].markdown(f"<span class='mono'>{below}</span>", unsafe_allow_html=True)
             r[4].markdown(f"<span class='mono'>{above}</span>", unsafe_allow_html=True)
-            if is_manager:
-                if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
-                    edit_target = name
-                if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
-                    config_store.delete_param(params, name)
-                    st.rerun()
+            if r[5].button("", icon=":material/edit:", key=f"cfg_edit_{name}", help="Edit"):
+                edit_target = name
+            if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
+                config_store.delete_param(current_username, params, name)
+                st.rerun()
 
-    # ---- Open the modal for add / edit (managers only) ----
-    if is_manager and add_clicked:
+    # ---- Open the modal for add / edit ----
+    if add_clicked:
         _param_dialog(params, None)
-    elif is_manager and edit_target:
+    elif edit_target:
         _param_dialog(params, edit_target)
 
 
@@ -1087,6 +1090,8 @@ def page_account():
                         auth.change_display_name(config, current_username, new_name)
                     ok, msg = auth.change_username(config, current_username, new_un)
                     if ok:
+                        # Configurations are keyed by username, so move them too.
+                        config_store.rename_owner(current_username, new_un.strip())
                         st.session_state["_flash"] = "Username updated — please sign in with your new username."
                         authenticator.logout(location="unrendered")
                         for k in ("nav", "data_df", "result", "error", "pdf_bytes", "pdf_name"):
