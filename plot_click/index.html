@@ -29,11 +29,12 @@
   #wrap i.r:hover::after { left:auto; right:0; transform:none; }
 
   /* overlay toolbar — lives inside the stage so it is reachable full screen */
-  #toolbar { position:absolute; top:8px; right:8px; z-index:40; display:flex;
-             align-items:center; gap:6px; padding:4px 6px;
+  #toolbar { position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+             z-index:40; display:flex; align-items:center; gap:6px; padding:4px 6px;
              font-family:"Source Sans Pro","Segoe UI",sans-serif;
-             background:rgba(255,255,255,.9); border:1px solid #e2e8f0;
-             border-radius:8px; opacity:0; transition:opacity .15s; }
+             background:rgba(255,255,255,.95); border:1px solid #e2e8f0;
+             border-radius:8px; box-shadow:0 2px 10px rgba(15,23,42,.12);
+             opacity:0; transition:opacity .15s; }
   #stage:hover #toolbar { opacity:1; }
   /* While points are marked the controls must be reliably visible, so this
      state is immediate — never dependent on the fade completing. */
