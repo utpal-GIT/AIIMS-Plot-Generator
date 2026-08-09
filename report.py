@@ -92,10 +92,20 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
     rng = (f"{stats['x_min']:.2f} – {stats['x_max']:.2f}"
            if _finite(stats["x_min"]) and _finite(stats["x_max"]) else "No valid range")
     story.append(Paragraph("Statistics", ss["Sec"]))
+    def _coef(value, lo_key, hi_key, dp):
+        """Coefficient with its 95% CI; on a difference plot 0 means no bias."""
+        lo, hi = stats.get(lo_key), stats.get(hi_key)
+        if lo is None or hi is None or not (_finite(lo) and _finite(hi)):
+            return f"{value:.{dp}f}"
+        note = "" if lo <= 0 <= hi else "  (excludes 0)"
+        return f"{value:.{dp}f}   95% CI {lo:.{dp}f} to {hi:.{dp}f}{note}"
+
     story.append(_kv_table([
         ["Valid analysis range", rng],
         ["Mean-diff / OLS angle", f"{stats['ols_angle_deg']:.2f}°"],
-        ["OLS slope", f"{stats['slope']:.4f}"],
+        ["OLS slope", _coef(stats["slope"], "slope_ci_low", "slope_ci_high", 4)],
+        ["OLS intercept", _coef(stats.get("intercept", float("nan")),
+                                "intercept_ci_low", "intercept_ci_high", 3)],
         ["Mean difference", f"{stats['mean_diff']:.2f}"],
         ["Total points", str(stats["n_total"])],
         ["Points in valid range", str(stats["n_in_range"])],

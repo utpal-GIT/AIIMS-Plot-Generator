@@ -113,6 +113,7 @@ def generate_plot(
     X_sm = sm.add_constant(df["X"])
     model = sm.OLS(df["Diff"], X_sm).fit()
     slope = model.params.iloc[1]
+    coef_ci = model.conf_int(alpha=0.05)     # rows: const, X
 
     # Angle between the (horizontal) mean-diff line and the OLS line,
     # in data units: mean-diff slope = 0, so angle = atan(OLS slope).
@@ -399,6 +400,14 @@ def generate_plot(
         "model": reg_name,
         "slope": float(slope),
         "intercept": float(model.params.iloc[0]),
+        # 95% CIs for the regression coefficients. On this difference plot the
+        # no-bias values are 0 for both: the slope is (classic slope - 1), so
+        # a CI clear of 0 indicates proportional bias, and the intercept is
+        # the constant bias. Same OLS assumptions as the plotted CI band.
+        "slope_ci_low": float(coef_ci.iloc[1, 0]),
+        "slope_ci_high": float(coef_ci.iloc[1, 1]),
+        "intercept_ci_low": float(coef_ci.iloc[0, 0]),
+        "intercept_ci_high": float(coef_ci.iloc[0, 1]),
         "ols_angle_deg": ols_angle_deg,
         "mean_diff": float(mean_diff),
         "std_diff": float(std_diff),

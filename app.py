@@ -725,8 +725,10 @@ def _tol_desc(value, tol_type):
     return f"± {value:g}", "absolute"
 
 
-def _stat_card(label, value):
-    return f"<div class='sc'><div class='scl'>{label}</div><div class='scv'>{value}</div></div>"
+def _stat_card(label, value, sub=None):
+    sub_html = f"<div class='scs'>{sub}</div>" if sub else ""
+    return (f"<div class='sc'><div class='scl'>{label}</div>"
+            f"<div class='scv'>{value}</div>{sub_html}</div>")
 
 
 # Point-category colors — identical to the plot markers.
@@ -770,12 +772,25 @@ def _render_statistics(s, excluded_n=0):
            if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
     ov, vr = s["overall"], s["valid_range"]
 
-    # Key metrics
+    # Key metrics. On a difference plot the no-bias value is 0 for BOTH
+    # coefficients (the slope here is the classic slope minus 1), so a CI
+    # clear of 0 is what indicates proportional / constant bias.
+    def _ci(lo_key, hi_key, dp):
+        lo, hi = s.get(lo_key), s.get(hi_key)
+        if lo is None or hi is None or not (math.isfinite(lo) and math.isfinite(hi)):
+            return None
+        flag = "" if lo <= 0 <= hi else "  · excludes 0"
+        return f"95% CI {lo:.{dp}f} to {hi:.{dp}f}{flag}"
+
     metrics = [
         _stat_card("Analysis range", rng),
-        _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
-        _stat_card("OLS slope", f"{s['slope']:.4f}"),
         _stat_card("Mean difference", f"{s['mean_diff']:.2f}"),
+        _stat_card("OLS slope", f"{s['slope']:.4f}",
+                   _ci("slope_ci_low", "slope_ci_high", 4)),
+        _stat_card("OLS intercept", f"{s.get('intercept', float('nan')):.3f}",
+                   _ci("intercept_ci_low", "intercept_ci_high", 3)),
+        _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
+        _stat_card("SD of differences", f"{s.get('std_diff', float('nan')):.3f}"),
     ]
 
     # Each card states the span it is computed over.
@@ -827,7 +842,7 @@ def _param_dialog(params, editing):
     @st.dialog("Edit parameter" if editing else "Add parameter", width="large")
     def _dlg():
         preset = params.get(editing, {}) if editing else {}
-        st.caption("Shared across the lab and applied on the Dashboard.")
+        st.caption("Private to your account and applied on your Dashboard.")
         # Mode selector is OUTSIDE the form so the fields update live.
         MODES = ["Threshold-based (below / above)", "Single tolerance (value / % bias)"]
         default_mode = 0 if (not editing or config_store.has_threshold(preset)) else 1
