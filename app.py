@@ -691,31 +691,9 @@ def page_dashboard():
                     st.caption("Interactive plot unavailable — click **Generate plot** to rebuild."
                                if stale else f"Interactive plot unavailable ({e}).")
 
-            # --- Confirm bar for the marked point(s) ---
-            df_now = st.session_state["data_df"]
-            marked = [s for s in st.session_state.get("marked", [])
-                      if 0 <= s - 1 < len(df_now)]
-            if marked:
-                shown = ", ".join(str(s) for s in sorted(marked)[:12])
-                if len(marked) > 12:
-                    shown += f" … (+{len(marked) - 12})"
-                if len(marked) == 1:
-                    row = df_now.iloc[marked[0] - 1]
-                    label = (f"Marked <b>Sl No {marked[0]}</b> &nbsp;·&nbsp; "
-                             f"Reference {row['Reference']:.2f}, Index {row['Measured']:.2f}")
-                else:
-                    label = f"<b>{len(marked)} points marked</b> &nbsp;·&nbsp; Sl No {shown}"
-                cb = st.columns([2.4, 1, 1], vertical_alignment="center")
-                cb[0].markdown(f"<div style='font-size:13px;color:#334155;'>{label}</div>",
-                               unsafe_allow_html=True)
-                drop_label = "Deselect point" if len(marked) == 1 else f"Deselect {len(marked)} points"
-                if cb[1].button(drop_label, type="primary", use_container_width=True,
-                                key="drop_pt"):
-                    _drop_marked(marked)
-                    st.rerun()
-                if cb[2].button("Clear marks", use_container_width=True, key="drop_cancel"):
-                    st.session_state["marked"] = []
-                    st.rerun()
+            # Marking controls live on the plot's own toolbar (see
+            # plot_click/index.html) so they work full screen too; a second
+            # copy here would just duplicate them.
             png = io.BytesIO()
             result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
             png.seek(0)

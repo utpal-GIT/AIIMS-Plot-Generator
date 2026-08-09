@@ -45,7 +45,7 @@
         border-radius:6px; box-shadow:0 1px 4px rgba(15,23,42,.10); }
   #fs:hover { color:#0f172a; border-color:#cbd5e1; background:#fff; }
 
-  #toolbar { bottom:10px; left:50%; transform:translateX(-50%); gap:6px; padding:4px 6px;
+  #toolbar { bottom:10px; right:10px; gap:6px; padding:4px 6px;
              background:rgba(255,255,255,.95); border:1px solid #e2e8f0;
              border-radius:8px; box-shadow:0 2px 10px rgba(15,23,42,.12); }
   #toolbar button { display:flex; align-items:center; gap:5px; padding:4px 9px;
@@ -70,17 +70,20 @@
 </head>
 <body>
 <div id="stage">
-  <div id="wrap"></div>
-  <button id="fs" type="button" aria-label="Toggle full screen">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
-    </svg><span id="fslabel">Full screen</span>
-  </button>
-  <div id="toolbar">
-    <span id="marklabel" class="hide"></span>
-    <button id="drop" type="button" class="hide">Deselect</button>
-    <button id="clearmarks" type="button" class="hide">Clear marks</button>
+  <!-- Controls live inside #wrap so they anchor to the image itself, which in
+       full screen is letterboxed inside the stage. -->
+  <div id="wrap">
+    <button id="fs" type="button" aria-label="Toggle full screen">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
+      </svg><span id="fslabel">Full screen</span>
+    </button>
+    <div id="toolbar">
+      <span id="marklabel" class="hide"></span>
+      <button id="drop" type="button" class="hide">Deselect</button>
+      <button id="clearmarks" type="button" class="hide">Clear marks</button>
+    </div>
   </div>
 </div>
 <script>
@@ -160,9 +163,17 @@
     window.parent.document.addEventListener("fullscreenchange", onFsChange);
   } catch (e) {}
 
-  function updateToolbar(n) {
+  function updateToolbar(n, list) {
     var on = n > 0;
-    mLbl.textContent = on ? (n === 1 ? "1 point marked" : n + " points marked") : "";
+    if (on) {
+      var sorted = (list || []).slice().sort(function (a, b) { return a - b; });
+      var shown = sorted.slice(0, 6).join(", ");
+      if (sorted.length > 6) shown += " +" + (sorted.length - 6);
+      mLbl.textContent = (n === 1 ? "1 point marked" : n + " points marked")
+                         + "  ·  Sl No " + shown;
+    } else {
+      mLbl.textContent = "";
+    }
     [mLbl, dropB, clrB].forEach(function (el) { el.classList.toggle("hide", !on); });
     dropB.textContent = on && n > 1 ? "Deselect " + n : "Deselect";
     // The bar now holds only the marking controls, so hide the whole pill
@@ -174,8 +185,11 @@
   function render(args) {
     var pts = args.points || [];
     var selected = args.selected || [];   // list of marked Sl No values
-    updateToolbar(selected.length);
-    wrap.innerHTML = "";
+    updateToolbar(selected.length, selected);
+    // Replace only the image and hit targets — the overlay controls are
+    // children of #wrap now and must survive a re-render.
+    Array.prototype.forEach.call(wrap.querySelectorAll("img, i"),
+                                 function (el) { el.remove(); });
 
     var img = document.createElement("img");
     img.onload = function () {
