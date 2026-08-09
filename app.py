@@ -326,8 +326,7 @@ def _fmt_ts(value):
 
 
 def _role_badge(role_label):
-    colors = {"Super admin": ("#dcfce7", "#16a34a"), "Admin": ("#dbeafe", "#2563eb"),
-              "User": ("#f1f5f9", "#64748b")}
+    colors = {"Admin": ("#dbeafe", "#2563eb"), "User": ("#f1f5f9", "#64748b")}
     bg, fg = colors.get(role_label, ("#f1f5f9", "#64748b"))
     return (f"<span style='background:{bg}; color:{fg}; font-weight:600; font-size:12px; "
             f"padding:4px 12px; border-radius:999px; white-space:nowrap;'>{role_label}</span>")
@@ -1113,11 +1112,7 @@ def page_settings():
         return
 
     roles_for_actor = auth.assignable_roles(current_role)
-    if current_role == auth.ROLE_SUPERADMIN:
-        sub = ("Users and usage — accounts appear here on their first Google "
-               "sign-in.")
-    else:
-        sub = "Users and usage — you can manage regular users."
+    sub = "Users and usage — accounts appear here on their first Google sign-in."
 
     st.markdown(f"<div class='dash-title'>Settings</div>"
                 f"<div class='dash-sub'>{sub}</div>", unsafe_allow_html=True)

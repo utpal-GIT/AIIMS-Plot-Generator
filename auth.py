@@ -7,7 +7,7 @@ sits behind a Google identity: the role, when they first appeared and when they
 last signed in.
 
 Sign-in is open — any Google account may log in, and an account row is created
-on first sight. Emails listed in the ADMIN_EMAILS secret are always super admin;
+on first sight. Emails listed in the ADMIN_EMAILS secret are always admin;
 that is deliberately outside the database so a misconfiguration can never lock
 every administrator out.
 
@@ -24,11 +24,19 @@ CONFIG_PATH = os.environ.get("AUTH_CONFIG_PATH") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "auth_config.yaml"
 )
 
-ROLE_SUPERADMIN = "superadmin"
+# Two roles only: an admin manages users and sees usage; a user does not.
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
-ROLE_RANK = {ROLE_USER: 0, ROLE_ADMIN: 1, ROLE_SUPERADMIN: 2}
-ROLE_LABELS = {ROLE_USER: "User", ROLE_ADMIN: "Admin", ROLE_SUPERADMIN: "Super admin"}
+ROLE_RANK = {ROLE_USER: 0, ROLE_ADMIN: 1}
+ROLE_LABELS = {ROLE_USER: "User", ROLE_ADMIN: "Admin"}
+
+
+def _norm_role(value):
+    """Coerce a stored role to one of the two we support.
+
+    Rows written when a third 'superadmin' tier existed read back as admin.
+    """
+    return ROLE_ADMIN if value in (ROLE_ADMIN, "superadmin") else ROLE_USER
 
 
 def _database_url():
@@ -44,7 +52,7 @@ def _database_url():
 
 
 def admin_emails():
-    """Emails that are always super admin — the break-glass list."""
+    """Emails that are always admin — the break-glass list."""
     raw = os.environ.get("ADMIN_EMAILS")
     if raw is None:
         try:
@@ -133,13 +141,13 @@ def _row_to_dict(row):
 def sync_login(email, *, name=None, sub=None, picture=None):
     """Record a sign-in, creating the account on first sight.
 
-    Returns the stored user record. Emails in ADMIN_EMAILS are forced to super
-    admin on every login so that list always wins.
+    Returns the stored user record. Emails in ADMIN_EMAILS are forced to admin
+    on every login so that list always wins.
     """
     email = (email or "").strip().lower()
     if not email:
         return None
-    forced = ROLE_SUPERADMIN if email in admin_emails() else None
+    forced = ROLE_ADMIN if email in admin_emails() else None
 
     url = _database_url()
     if url:
@@ -190,26 +198,33 @@ def list_users():
                 cur.execute("""SELECT email, sub, name, picture, role,
                                       first_login, last_login, login_count
                                FROM app_users ORDER BY last_login DESC NULLS LAST""")
-                return [_row_to_dict(r) for r in cur.fetchall()]
+                rows = [_row_to_dict(r) for r in cur.fetchall()]
+                for r in rows:
+                    r["role"] = _norm_role(r.get("role"))
+                return rows
         return _db_run(url, _q) or []
-    users = _file_load().get("users", {})
-    return sorted(users.values(), key=lambda r: r.get("last_login") or "", reverse=True)
+    users = []
+    for rec in _file_load().get("users", {}).values():
+        rec = dict(rec)
+        rec["role"] = _norm_role(rec.get("role"))
+        users.append(rec)
+    return sorted(users, key=lambda r: r.get("last_login") or "", reverse=True)
 
 
 def role_of(email):
     email = (email or "").strip().lower()
     if email in admin_emails():
-        return ROLE_SUPERADMIN
+        return ROLE_ADMIN
     url = _database_url()
     if url:
         def _q(conn):
             with conn.cursor() as cur:
                 cur.execute("SELECT role FROM app_users WHERE email = %s", (email,))
                 row = cur.fetchone()
-                return row[0] if row else None
+                return _norm_role(row[0]) if row else None
         return _db_run(url, _q) or ROLE_USER
     rec = _file_load().get("users", {}).get(email)
-    return (rec or {}).get("role", ROLE_USER)
+    return _norm_role((rec or {}).get("role"))
 
 
 def _count_role(role):
@@ -221,13 +236,13 @@ def set_role(email, new_role, *, actor_role=None):
     if new_role not in ROLE_RANK:
         return False, f"Unknown role '{new_role}'."
     if email in admin_emails():
-        return False, "That account is pinned to super admin by ADMIN_EMAILS."
+        return False, "That account is pinned to admin by ADMIN_EMAILS."
     current = role_of(email)
     if actor_role is not None:
         if not can_manage_target(actor_role, current) or not can_assign(actor_role, new_role):
             return False, "You are not allowed to change that user's role."
-    if current == ROLE_SUPERADMIN and new_role != ROLE_SUPERADMIN and _count_role(ROLE_SUPERADMIN) <= 1:
-        return False, "Cannot demote the last super admin."
+    if current == ROLE_ADMIN and new_role != ROLE_ADMIN and _count_role(ROLE_ADMIN) <= 1:
+        return False, "Cannot demote the last admin."
 
     url = _database_url()
     if url:
@@ -248,12 +263,12 @@ def delete_user(email, current_email, *, actor_role=None):
     if email == (current_email or "").strip().lower():
         return False, "You cannot delete your own account while signed in."
     if email in admin_emails():
-        return False, "That account is pinned to super admin by ADMIN_EMAILS."
+        return False, "That account is pinned to admin by ADMIN_EMAILS."
     target_role = role_of(email)
     if actor_role is not None and not can_manage_target(actor_role, target_role):
         return False, "You are not allowed to delete that user."
-    if target_role == ROLE_SUPERADMIN and _count_role(ROLE_SUPERADMIN) <= 1:
-        return False, "Cannot delete the last super admin."
+    if target_role == ROLE_ADMIN and _count_role(ROLE_ADMIN) <= 1:
+        return False, "Cannot delete the last admin."
 
     url = _database_url()
     if url:
@@ -272,28 +287,18 @@ def delete_user(email, current_email, *, actor_role=None):
 # Role helpers (unchanged semantics)
 # --------------------------------------------------------------------------
 def is_manager(role):
-    return role in (ROLE_ADMIN, ROLE_SUPERADMIN)
+    return role == ROLE_ADMIN
 
 
 def can_assign(actor_role, new_role):
-    if actor_role == ROLE_SUPERADMIN:
-        return True
-    if actor_role == ROLE_ADMIN:
-        return new_role == ROLE_USER
-    return False
+    # Admins are peers: either role may be granted, guarded by the
+    # last-admin and pinned-account checks in set_role().
+    return actor_role == ROLE_ADMIN
 
 
 def can_manage_target(actor_role, target_role):
-    if actor_role == ROLE_SUPERADMIN:
-        return True
-    if actor_role == ROLE_ADMIN:
-        return target_role == ROLE_USER
-    return False
+    return actor_role == ROLE_ADMIN
 
 
 def assignable_roles(actor_role):
-    if actor_role == ROLE_SUPERADMIN:
-        return [ROLE_USER, ROLE_ADMIN, ROLE_SUPERADMIN]
-    if actor_role == ROLE_ADMIN:
-        return [ROLE_USER]
-    return []
+    return [ROLE_USER, ROLE_ADMIN] if actor_role == ROLE_ADMIN else []
