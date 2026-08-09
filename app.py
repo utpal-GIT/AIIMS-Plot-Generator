@@ -778,7 +778,9 @@ def _render_statistics(s, excluded_n=0):
     def _ci(lo_key, hi_key, dp):
         lo, hi = s.get(lo_key), s.get(hi_key)
         if lo is None or hi is None or not (math.isfinite(lo) and math.isfinite(hi)):
-            return None
+            # A plot generated before CIs existed carries no interval; say so
+            # rather than silently dropping the line.
+            return "95% CI — click Generate plot to compute"
         flag = "" if lo <= 0 <= hi else "  · excludes 0"
         return f"95% CI {lo:.{dp}f} to {hi:.{dp}f}{flag}"
 

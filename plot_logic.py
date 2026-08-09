@@ -359,8 +359,21 @@ def generate_plot(
     # every plotted point, the valid block only the clinically valid range.
     data_range_text = f"{x_min_data:.2f} – {x_max_data:.2f}"
 
+    # Regression coefficients with 95% CIs. On a difference plot the no-bias
+    # value is 0 for BOTH (this slope is the classic slope minus 1), so a CI
+    # clear of 0 indicates bias and is flagged in the outlier amber.
+    int_val = float(model.params.iloc[0])
+    s_lo, s_hi = float(coef_ci.iloc[1, 0]), float(coef_ci.iloc[1, 1])
+    i_lo, i_hi = float(coef_ci.iloc[0, 0]), float(coef_ci.iloc[0, 1])
+    c_slope = C_NEUTRAL if s_lo <= 0 <= s_hi else C_AMBER
+    c_int = C_NEUTRAL if i_lo <= 0 <= i_hi else C_AMBER
+
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
+        ("", None),
+        ("REGRESSION LINE (95% CI, no bias = 0)", C_HEAD),
+        (f"Slope: {slope:.4f}  [{s_lo:.4f}, {s_hi:.4f}]", c_slope),
+        (f"Intercept: {int_val:.3f}  [{i_lo:.3f}, {i_hi:.3f}]", c_int),
         ("", None),
         ("OVERALL SUMMARY", C_HEAD),
         (f"Overall plot range: {data_range_text}", C_NEUTRAL),
