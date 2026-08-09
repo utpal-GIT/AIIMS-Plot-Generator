@@ -207,6 +207,17 @@ st.markdown(
       [class*="st-key-sett_reset"] button,[class*="st-key-sett_del"] button{
         background:transparent !important; border:none !important; box-shadow:none !important;
         min-height:auto !important; padding:2px 6px !important; color:#94a3b8 !important;}
+      /* One size for every value cell in the users table, and email styled as
+         a quiet link — markdown auto-links a bare address, which otherwise
+         arrives underlined and at link size. */
+      .st-key-usertable .ucell{font-size:13px; color:#475569;
+        font-family:ui-monospace,"SFMono-Regular","Cascadia Code","Courier New",monospace;}
+      .st-key-usertable .nowrap{white-space:nowrap;}
+      .st-key-usertable a, .st-key-usertable .umail{
+        font-size:12.5px !important; color:#64748b !important;
+        text-decoration:none !important; word-break:break-all;
+        font-family:ui-monospace,"SFMono-Regular","Cascadia Code","Courier New",monospace;}
+      .st-key-usertable a:hover{color:#2563eb !important;}
       [class*="st-key-sett_reset"] button:hover{color:#2563eb !important;}
       [class*="st-key-sett_del"] button{color:#f87171 !important;}
       [class*="st-key-sett_del"] button:hover{color:#dc2626 !important;}
@@ -1143,14 +1154,14 @@ def page_settings():
     st.markdown("<div class='grid2'>" + "".join(kpis) + "</div>", unsafe_allow_html=True)
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    COLS = [2.9, 1.1, 1.25, 0.75, 0.8, 0.7, 0.7, 0.45, 0.45]
+    COLS = [2.0, 2.5, 0.95, 1.45, 0.62, 0.62, 0.55, 0.55, 0.42, 0.42]
     manage_target = None
     delete_target = None
 
     # ---- Users + their activity ----
     with st.container(border=True, key="usertable"):
         head = st.columns(COLS)
-        for col, title in zip(head, ["User", "Role", "Last login", "Logins",
+        for col, title in zip(head, ["Name", "Email", "Role", "Last login", "Logins",
                                      "Plots", "PNG", "PDF", "", ""]):
             col.markdown(f"<div class='scl'>{title}</div>", unsafe_allow_html=True)
         if not users:
@@ -1161,33 +1172,36 @@ def page_settings():
             r = st.columns(COLS, vertical_alignment="center")
             bg, fg = _avatar_color(email)
             r[0].markdown(
-                f"<span style='display:inline-flex; vertical-align:middle; width:34px; "
-                f"height:34px; border-radius:50%; background:{bg}; color:{fg}; "
+                f"<span style='display:inline-flex; vertical-align:middle; width:30px; "
+                f"height:30px; border-radius:50%; background:{bg}; color:{fg}; "
                 f"align-items:center; justify-content:center; font-weight:600; "
-                f"font-size:12px;'>{_initials(u.get('name') or email)}</span>"
-                f"<span style='vertical-align:middle; margin-left:10px;'>"
-                f"<span style='font-weight:600; color:#0f172a;'>{u.get('name') or '—'}</span>"
-                f"<br><span class='mono' style='font-size:12px;'>{email}</span></span>",
+                f"font-size:11.5px;'>{_initials(u.get('name') or email)}</span>"
+                f"<span style='vertical-align:middle; margin-left:9px; font-size:14px; "
+                f"font-weight:600; color:#0f172a;'>{u.get('name') or '—'}</span>",
                 unsafe_allow_html=True,
             )
-            r[1].markdown(_role_badge(auth.ROLE_LABELS.get(u.get("role"), "User")),
+            # Left as plain text: markdown auto-links a bare address, and
+            # wrapping it in our own anchor just nests one inside the other.
+            # The .st-key-usertable a rule styles whatever it produces.
+            r[1].markdown(email)
+            r[2].markdown(_role_badge(auth.ROLE_LABELS.get(u.get("role"), "User")),
                           unsafe_allow_html=True)
-            r[2].markdown(f"<span class='mono'>{_fmt_ts(u.get('last_login'))}</span>",
+            r[3].markdown(f"<span class='ucell nowrap'>{_fmt_ts(u.get('last_login'))}</span>",
                           unsafe_allow_html=True)
-            r[3].markdown(f"<span class='mono'>{u.get('login_count', 0)}</span>",
+            r[4].markdown(f"<span class='ucell'>{u.get('login_count', 0)}</span>",
                           unsafe_allow_html=True)
-            r[4].markdown(f"<span class='mono'>{c.get(usage.GENERATE, 0)}</span>",
+            r[5].markdown(f"<span class='ucell'>{c.get(usage.GENERATE, 0)}</span>",
                           unsafe_allow_html=True)
-            r[5].markdown(f"<span class='mono'>{c.get(usage.DOWNLOAD_PNG, 0)}</span>",
+            r[6].markdown(f"<span class='ucell'>{c.get(usage.DOWNLOAD_PNG, 0)}</span>",
                           unsafe_allow_html=True)
-            r[6].markdown(f"<span class='mono'>{c.get(usage.DOWNLOAD_PDF, 0)}</span>",
+            r[7].markdown(f"<span class='ucell'>{c.get(usage.DOWNLOAD_PDF, 0)}</span>",
                           unsafe_allow_html=True)
             if auth.can_manage_target(current_role, u.get("role") or auth.ROLE_USER):
-                if r[7].button("", icon=":material/manage_accounts:",
+                if r[8].button("", icon=":material/manage_accounts:",
                                key=f"sett_role_{email}", help="Change role"):
                     manage_target = u
                 is_self = email == current_username
-                if r[8].button("", icon=":material/delete:", key=f"sett_del_{email}",
+                if r[9].button("", icon=":material/delete:", key=f"sett_del_{email}",
                                help=("You can't delete your own account" if is_self else "Delete"),
                                disabled=is_self):
                     delete_target = u
