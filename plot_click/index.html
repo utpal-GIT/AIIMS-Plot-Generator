@@ -42,7 +42,11 @@
         opacity:0; transition:opacity .15s; }
   #wrap:hover #fs { opacity:1; }
   #fs:hover { color:#0f172a; border-color:#cbd5e1; background:#fff; }
-  #stage:fullscreen #fs { opacity:1; transition:none; }
+  /* Full screen: pin the exit control to the viewport's top-right rather than
+     the image's corner, which is inset once the figure is letterboxed.
+     position:fixed inside a full-screen element resolves against the screen. */
+  #stage:fullscreen #fs { position:fixed; top:14px; right:16px;
+                          opacity:1; transition:none; }
 
   /* marking controls — sit BELOW the figure so the x-axis labels stay clear */
   #toolbar { position:relative; margin:6px 0 0 auto; width:fit-content;
