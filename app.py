@@ -87,6 +87,17 @@ def _plot_hover_html(payload):
             + "".join(spots) + "</div>")
 
 
+def _drop_marked(marked):
+    """Untick every marked row so it leaves the plot, statistics and table."""
+    df_now = st.session_state["data_df"]
+    for s in marked:
+        if 0 <= s - 1 < len(df_now):
+            df_now.loc[df_now.index[s - 1], "Include"] = False
+    st.session_state["data_df"] = df_now
+    st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
+    st.session_state["marked"] = []
+
+
 def _excel_sheets(upload):
     """Sheet names in an uploaded workbook, cached per file.
 
@@ -654,18 +665,24 @@ def page_dashboard():
                         clicked = _plot_click(img=payload["img"], points=payload["points"],
                                               selected=marked, key="plotclick", default=None)
                         # The component replays its last value on every rerun;
-                        # only act when the click id actually changes.
+                        # only act when the event id actually changes.
                         if clicked and clicked.get("n") != st.session_state.get("click_n"):
                             st.session_state["click_n"] = clicked.get("n")
-                            sl = clicked.get("sl")
-                            if sl in marked:
-                                marked.remove(sl)      # clicking again unmarks
-                            else:
-                                marked.append(sl)
-                            st.session_state["marked"] = marked
+                            action = clicked.get("action") or "toggle"
+                            if action == "toggle":
+                                sl = clicked.get("sl")
+                                if sl in marked:
+                                    marked.remove(sl)  # clicking again unmarks
+                                else:
+                                    marked.append(sl)
+                                st.session_state["marked"] = marked
+                            elif action == "clear":
+                                st.session_state["marked"] = []
+                            elif action == "drop":
+                                _drop_marked(marked)   # also clears the marks
                             st.rerun()
-                        st.caption("Hover a point for its Sl No and (X, Y) — "
-                                   "click to mark points, click again to unmark.")
+                        st.caption("Hover a point for its Sl No and (X, Y) — click to mark "
+                                   "points, then use **Deselect** on the plot toolbar.")
                     else:
                         st.markdown(_plot_hover_html(payload), unsafe_allow_html=True)
                         st.caption("Hover a point to see its Sl No and (X, Y) values.")
@@ -694,11 +711,7 @@ def page_dashboard():
                 drop_label = "Deselect point" if len(marked) == 1 else f"Deselect {len(marked)} points"
                 if cb[1].button(drop_label, type="primary", use_container_width=True,
                                 key="drop_pt"):
-                    for s in marked:
-                        df_now.loc[df_now.index[s - 1], "Include"] = False
-                    st.session_state["data_df"] = df_now
-                    st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
-                    st.session_state["marked"] = []
+                    _drop_marked(marked)
                     st.rerun()
                 if cb[2].button("Clear marks", use_container_width=True, key="drop_cancel"):
                     st.session_state["marked"] = []

@@ -28,15 +28,27 @@
   #wrap i.l:hover::after { left:0; transform:none; }
   #wrap i.r:hover::after { left:auto; right:0; transform:none; }
 
-  /* full-screen control */
-  #fs { position:absolute; top:8px; right:8px; z-index:40; display:flex;
-        align-items:center; gap:6px; padding:4px 9px; cursor:pointer;
-        font-family:"Source Sans Pro","Segoe UI",sans-serif; font-size:11.5px;
-        font-weight:500; color:#475569; background:rgba(255,255,255,.86);
-        border:1px solid #e2e8f0; border-radius:6px; line-height:1;
-        opacity:0; transition:opacity .15s; }
-  #stage:hover #fs, #fs:focus { opacity:1; }
-  #fs:hover { color:#0f172a; border-color:#cbd5e1; background:#fff; }
+  /* overlay toolbar — lives inside the stage so it is reachable full screen */
+  #toolbar { position:absolute; top:8px; right:8px; z-index:40; display:flex;
+             align-items:center; gap:6px; padding:4px 6px;
+             font-family:"Source Sans Pro","Segoe UI",sans-serif;
+             background:rgba(255,255,255,.9); border:1px solid #e2e8f0;
+             border-radius:8px; opacity:0; transition:opacity .15s; }
+  #stage:hover #toolbar { opacity:1; }
+  /* While points are marked the controls must be reliably visible, so this
+     state is immediate — never dependent on the fade completing. */
+  #toolbar.on { opacity:1; transition:none; }
+  #toolbar button { display:flex; align-items:center; gap:5px; padding:4px 9px;
+                    cursor:pointer; font-size:11.5px; font-weight:500;
+                    font-family:inherit; color:#475569; background:#fff;
+                    border:1px solid #e2e8f0; border-radius:6px; line-height:1; }
+  #toolbar button:hover { color:#0f172a; border-color:#cbd5e1; }
+  #drop { color:#b91c1c !important; border-color:#fecaca !important; }
+  #drop:hover { color:#fff !important; background:#dc2626 !important;
+                border-color:#dc2626 !important; }
+  #marklabel { font-size:11.5px; font-weight:600; color:#334155;
+               padding-left:4px; white-space:nowrap; }
+  .hide { display:none !important; }
 
   /* In full screen keep #wrap exactly the image's box, so the percentage-
      positioned hit targets stay aligned with the markers. */
@@ -49,18 +61,36 @@
 <body>
 <div id="stage">
   <div id="wrap"></div>
-  <button id="fs" type="button" aria-label="Toggle full screen">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
-    </svg><span id="fslabel">Full screen</span>
-  </button>
+  <div id="toolbar">
+    <span id="marklabel" class="hide"></span>
+    <button id="drop" type="button" class="hide">Deselect</button>
+    <button id="clearmarks" type="button" class="hide">Clear marks</button>
+    <button id="fs" type="button" aria-label="Toggle full screen">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
+      </svg><span id="fslabel">Full screen</span>
+    </button>
+  </div>
 </div>
 <script>
   var stage = document.getElementById("stage");
   var wrap  = document.getElementById("wrap");
   var fsBtn = document.getElementById("fs");
   var fsLbl = document.getElementById("fslabel");
+  var bar   = document.getElementById("toolbar");
+  var mLbl  = document.getElementById("marklabel");
+  var dropB = document.getElementById("drop");
+  var clrB  = document.getElementById("clearmarks");
+
+  function act(action) {
+    // Date.now() keeps the value distinct so repeat actions still register.
+    send({ type: "streamlit:setComponentValue",
+           value: { action: action.action, sl: action.sl || null, n: Date.now() },
+           dataType: "json" });
+  }
+  dropB.addEventListener("click", function () { act({ action: "drop" }); });
+  clrB.addEventListener("click", function () { act({ action: "clear" }); });
 
   function send(msg) {
     msg.isStreamlitMessage = true;
@@ -120,9 +150,18 @@
     window.parent.document.addEventListener("fullscreenchange", onFsChange);
   } catch (e) {}
 
+  function updateToolbar(n) {
+    var on = n > 0;
+    mLbl.textContent = on ? (n === 1 ? "1 point marked" : n + " points marked") : "";
+    [mLbl, dropB, clrB].forEach(function (el) { el.classList.toggle("hide", !on); });
+    dropB.textContent = on && n > 1 ? "Deselect " + n : "Deselect";
+    bar.classList.toggle("on", on);       // stays visible while marks exist
+  }
+
   function render(args) {
     var pts = args.points || [];
     var selected = args.selected || [];   // list of marked Sl No values
+    updateToolbar(selected.length);
     wrap.innerHTML = "";
 
     var img = document.createElement("img");
@@ -147,11 +186,7 @@
       if (selected.indexOf(p.sl) !== -1) cls.push("sel");
       i.className = cls.join(" ");
       i.setAttribute("data-tip", "Sl No " + p.sl + "  ·  (" + p.x + ", " + p.y + ")");
-      i.addEventListener("click", function () {
-        // Date.now() keeps the value distinct so repeat clicks still register.
-        send({ type: "streamlit:setComponentValue",
-               value: { sl: p.sl, n: Date.now() }, dataType: "json" });
-      });
+      i.addEventListener("click", function () { act({ action: "toggle", sl: p.sl }); });
       wrap.appendChild(i);
     });
     setHeight();
