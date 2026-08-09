@@ -2,9 +2,10 @@
 Method Comparison Plot Generator — Streamlit dashboard.
 
 Modern dashboard layout: sidebar navigation (Dashboard, Configurations,
-Account, Settings, Logout); all plotting controls live on the main screen.
-Per-parameter tolerances are defined in Configurations and applied on the
-Dashboard. Reports are exported as PDF.
+Account, and Settings for admins); all plotting controls live on the main
+screen. Sign-in is Google only, via Streamlit's native OIDC, so the app
+holds no passwords. Tolerances are configured per user in Configurations
+and applied on their Dashboard. Reports are exported as PDF.
 """
 
 import base64
@@ -1086,7 +1087,7 @@ def page_account():
     with outer[0]:
         st.markdown(
             "<div class='dash-title'>Account</div>"
-            "<div class='dash-sub'>Your profile and password.</div>",
+            "<div class='dash-sub'>Your profile and sign-in details.</div>",
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
