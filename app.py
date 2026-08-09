@@ -782,7 +782,7 @@ def _render_statistics(s, excluded_n=0):
             # rather than silently dropping the line.
             return "95% CI — click Generate plot to compute"
         flag = "" if lo <= 0 <= hi else "  · excludes 0"
-        return f"95% CI {lo:.{dp}f} to {hi:.{dp}f}{flag}"
+        return f"95% CI [{lo:.{dp}f}, {hi:.{dp}f}]{flag}"
 
     metrics = [
         _stat_card("Analysis range", rng),
