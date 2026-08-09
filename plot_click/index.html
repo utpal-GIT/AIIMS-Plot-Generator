@@ -59,8 +59,11 @@
                 border-color:#dc2626 !important; }
   #marklabel { font-size:11.5px; font-weight:600; color:#334155;
                padding-left:4px; white-space:nowrap; }
-  #info { width:20px; height:20px; padding:0; justify-content:center;
-          border-radius:50%; font-weight:700; font-size:11px; }
+  /* Two ids, so this beats the generic "#toolbar button" pill styling. */
+  #toolbar #info { width:20px; height:20px; padding:0; justify-content:center;
+                   border-radius:50%; color:#64748b; background:transparent;
+                   border:none; }
+  #toolbar #info:hover { color:#2563eb; background:#eff6ff; }
   /* popover listing the marked Sl numbers when there are too many to inline */
   #slpop { position:absolute; right:0; bottom:calc(100% + 7px); z-index:50;
            min-width:180px; max-width:340px; padding:8px 10px;
@@ -70,11 +73,13 @@
   .hide { display:none !important; }
 
   /* Full screen: centre the frame and keep it exactly the image's box, so the
-     percentage-positioned hit targets stay aligned. 52px leaves room for the
-     bar beneath. */
+     percentage-positioned hit targets stay aligned. The insets keep the frame
+     — and so the right-aligned bar — clear of the screen edges, and leave
+     room for the bar beneath the figure. */
   #stage:fullscreen { background:#fff; display:flex;
                       align-items:center; justify-content:center; }
-  #stage:fullscreen #frame { width:min(100vw, calc((100vh - 52px) * var(--ar, 1.85))); }
+  #stage:fullscreen #frame { width:min(calc(100vw - 44px),
+                                       calc((100vh - 72px) * var(--ar, 1.85))); }
 </style>
 </head>
 <body>
@@ -90,7 +95,13 @@
     </div>
     <div id="toolbar" class="hide">
       <span id="marklabel"></span>
-      <button id="info" type="button" class="hide" aria-label="Show marked Sl numbers">i</button>
+      <button id="info" type="button" class="hide" aria-label="Show marked Sl numbers">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9.2"/><path d="M12 11.2v5"/>
+          <circle cx="12" cy="7.4" r="1.05" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
       <button id="drop" type="button">Deselect</button>
       <button id="clearmarks" type="button">Clear marks</button>
       <div id="slpop" class="hide"></div>
