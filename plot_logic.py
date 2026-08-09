@@ -371,7 +371,7 @@ def generate_plot(
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
         ("", None),
-        ("REGRESSION LINE (95% CI, no bias = 0)", C_HEAD),
+        ("REGRESSION LINE (95% CI)", C_HEAD),
         (f"Slope: {slope:.4f}  [{s_lo:.4f}, {s_hi:.4f}]", c_slope),
         (f"Intercept: {int_val:.3f}  [{i_lo:.3f}, {i_hi:.3f}]", c_int),
         ("", None),
