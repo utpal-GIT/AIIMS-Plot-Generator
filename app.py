@@ -136,7 +136,9 @@ st.markdown(
     """
     <style>
       /* Balanced spacing + smaller, consistent font sizes */
-      .block-container{padding-top:1.8rem; padding-bottom:2rem; max-width:1360px;}
+      /* Streamlit's header is ~60px and absolutely positioned, so it overlays
+         the page. Clear it, or every page title is cut in half. */
+      .block-container{padding-top:4rem; padding-bottom:2rem; max-width:1360px;}
       [data-testid="stVerticalBlock"]{gap:0.7rem;}
       [data-testid="stHeading"]{margin-bottom:0.2rem;}
       h1{font-size:1.5rem !important; margin-bottom:0.2rem !important;}
