@@ -1,13 +1,18 @@
-streamlit==1.57.0
+# [auth] pulls in the OIDC extra used by st.login / st.user
+streamlit[auth]==1.57.0
 pandas>=2.0
 numpy>=1.24
 matplotlib>=3.7
 statsmodels>=0.14
 scipy>=1.10
 openpyxl>=3.1
-# Authentication: Google sign-in via Streamlit's native OIDC (st.login),
-# which requires Authlib. No password library is needed any more.
+# Authentication: Google sign-in via Streamlit's native OIDC (st.login).
+# No password library is needed any more.
 Authlib>=1.3.2
+# Authlib's Starlette integration imports httpx, and it is not pulled in
+# transitively — without it the login route fails with a misleading
+# "requires Authlib>=1.3.2" error.
+httpx>=0.27
 PyYAML>=6.0
 # Database persistence (for free hosting with an ephemeral filesystem):
 psycopg2-binary>=2.9
