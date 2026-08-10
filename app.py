@@ -767,6 +767,37 @@ def _tol_desc(value, tol_type):
     return f"± {value:g}", "absolute"
 
 
+def _params_csv(params):
+    """Configurations as CSV — raw numbers, so the file is usable in a sheet.
+
+    A single-tolerance parameter has no threshold; its one value applies
+    across the whole range, so it is written into both the below and above
+    columns and the Mode column records which shape it really is.
+    """
+    rows = []
+    for name, p in params.items():
+        threshold_based = config_store.has_threshold(p)
+        if threshold_based:
+            below_v, below_t = p.get("val_below"), p.get("type_below")
+            above_v, above_t = p.get("val_above"), p.get("type_above")
+            threshold = p.get("threshold")
+        else:
+            below_v = above_v = p.get("val")
+            below_t = above_t = p.get("type")
+            threshold = None
+        rows.append({
+            "Parameter": name,
+            "Unit": p.get("unit", ""),
+            "Mode": "Threshold-based" if threshold_based else "Single tolerance",
+            "Threshold": threshold,
+            "Below tolerance": below_v,
+            "Below type": below_t,
+            "Above tolerance": above_v,
+            "Above type": above_t,
+        })
+    return pd.DataFrame(rows).to_csv(index=False).encode("utf-8")
+
+
 def _stat_card(label, value, sub=None):
     sub_html = f"<div class='scs'>{sub}</div>" if sub else ""
     return (f"<div class='sc'><div class='scl'>{label}</div>"
@@ -1074,6 +1105,13 @@ def page_configurations():
             if r[6].button("", icon=":material/delete:", key=f"cfg_del_{name}", help="Delete"):
                 config_store.delete_param(current_username, params, name)
                 st.rerun()
+
+    # ---- Export ----
+    if params:
+        st.download_button(
+            "Export configurations (CSV)", _params_csv(params),
+            file_name="Datta - Srivastava Configurations.csv", mime="text/csv",
+            icon=":material/download:", key="dl_cfg")
 
     # ---- Open the modal for add / edit ----
     if add_clicked:
