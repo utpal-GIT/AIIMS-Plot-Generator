@@ -151,6 +151,11 @@
       t.el.classList.toggle("sel", sel.indexOf(t.sl) !== -1);
     });
     updateToolbar(sel);
+    // The toolbar appears with the first mark and goes away with the last,
+    // which changes the frame's height. Nothing else reports it now that
+    // marking no longer rebuilds the image, so the iframe would stay at its
+    // old size and clip the bar.
+    setHeight();
   }
 
   dropB.addEventListener("click", function () {
