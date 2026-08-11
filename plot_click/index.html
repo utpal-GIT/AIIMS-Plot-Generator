@@ -127,6 +127,13 @@
 
   var INLINE_MAX = 5;          // list Sl numbers inline up to this many
 
+  // Marking is applied here first and sent to Python second, so the ring
+  // appears on the click rather than after a server round trip.
+  var sel = [];                // Sl No values currently marked
+  var targets = [];            // {sl, el} for every hit target on screen
+  var curKey = null;           // identity of the figure now in the DOM
+  var pending = 0;             // actions sent but not yet reflected back
+
   function send(msg) {
     msg.isStreamlitMessage = true;
     window.parent.postMessage(msg, "*");
@@ -138,8 +145,22 @@
            value: { action: action, sl: sl || null, n: Date.now() },
            dataType: "json" });
   }
-  dropB.addEventListener("click", function () { act("drop"); });
-  clrB.addEventListener("click", function () { act("clear"); });
+
+  function applySelection() {
+    targets.forEach(function (t) {
+      t.el.classList.toggle("sel", sel.indexOf(t.sl) !== -1);
+    });
+    updateToolbar(sel);
+  }
+
+  dropB.addEventListener("click", function () {
+    sel = []; pending++; applySelection();
+    act("drop");
+  });
+  clrB.addEventListener("click", function () {
+    sel = []; pending++; applySelection();
+    act("clear");
+  });
   infoB.addEventListener("click", function (e) {
     e.stopPropagation();
     pop.classList.toggle("hide");
@@ -223,7 +244,22 @@
   function render(args) {
     var pts = args.points || [];
     var selected = args.selected || [];   // list of marked Sl No values
-    updateToolbar(selected);
+    var key = (args.img || "").length + ":" + pts.length + ":" + (args.img || "").slice(-64);
+
+    if (key === curKey) {
+      // Same figure — marking never redraws it, so leave the DOM alone and
+      // just reconcile the rings. Python reads `marked` before it handles the
+      // click, so each action is echoed back once with the list as it stood
+      // beforehand; skip exactly those and our own state stands.
+      if (pending) pending--;
+      else sel = selected.slice();
+      applySelection();
+      return;
+    }
+    curKey = key;
+    sel = selected.slice();
+    pending = 0;
+    targets = [];
     // Replace only the image and hit targets — #fs is a child of #wrap and
     // must survive a re-render.
     Array.prototype.forEach.call(wrap.querySelectorAll("img, i"),
@@ -248,12 +284,19 @@
       if (p.top < 14) cls.push("b");        // label would clip at the top
       if (p.left < 12) cls.push("l");       // ...or at the left/right edge
       else if (p.left > 88) cls.push("r");
-      if (selected.indexOf(p.sl) !== -1) cls.push("sel");
       i.className = cls.join(" ");
       i.setAttribute("data-tip", "Sl No " + p.sl + "  ·  (" + p.x + ", " + p.y + ")");
-      i.addEventListener("click", function () { act("toggle", p.sl); });
+      i.addEventListener("click", function () {
+        var k = sel.indexOf(p.sl);
+        if (k === -1) sel.push(p.sl); else sel.splice(k, 1);
+        pending++;
+        applySelection();            // the ring lands now, not after the rerun
+        act("toggle", p.sl);
+      });
       wrap.appendChild(i);
+      targets.push({ sl: p.sl, el: i });
     });
+    applySelection();
     setHeight();
   }
 

@@ -76,6 +76,22 @@ def _plot_payload(result, dpi=150):
     return {"img": f"data:image/png;base64,{b64}", "points": points}
 
 
+def _cached_payload(result):
+    """_plot_payload, computed once per generated figure.
+
+    Rendering the PNG and base64-encoding it costs ~250 ms; the figure only
+    changes when the plot is regenerated, so without this it is paid again on
+    every rerun — including each point you mark.
+    """
+    gen = st.session_state.get("plot_gen", 0)
+    cached = st.session_state.get("_payload_cache")
+    if cached and cached[0] == gen:
+        return cached[1]
+    payload = _plot_payload(result)
+    st.session_state["_payload_cache"] = (gen, payload)
+    return payload
+
+
 def _plot_hover_html(payload):
     """Static hover-only rendering — the fallback when the component is absent."""
     spots = []
@@ -500,7 +516,8 @@ def page_dashboard():
         if clear_clicked:
             st.session_state["data_df"] = _blank_data()
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
-            for k in ("result", "error", "pdf_bytes", "pdf_name", "last_opts", "marked"):
+            for k in ("result", "error", "pdf_name", "last_opts", "marked",
+                      "_payload_cache"):
                 st.session_state.pop(k, None)
             st.rerun()
 
@@ -655,13 +672,9 @@ def page_dashboard():
             )
             st.session_state["result"] = result
             st.session_state["error"] = None
-            try:
-                st.session_state["pdf_bytes"] = report.build_pdf(
-                    result.fig, result.stats, parameter=param_name, unit=p.get("unit", ""),
-                    tol=p, username=current_username,
-                    logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
-            except Exception:
-                st.session_state["pdf_bytes"] = None
+            # Identifies this figure, so the rendered image can be cached and
+            # reused across reruns instead of being redrawn every time.
+            st.session_state["plot_gen"] = st.session_state.get("plot_gen", 0) + 1
             st.session_state["pdf_name"] = f"Datta - Srivastava Report - {param_name}.pdf"
             # Count only explicit Generate clicks — the live refresh below
             # fires on every option tweak and would inflate the figure.
@@ -701,7 +714,7 @@ def page_dashboard():
                 try:
                     if stale:
                         raise ValueError("plot predates hover support")
-                    payload = _plot_payload(result)
+                    payload = _cached_payload(result)
                     if _plot_click is not None:
                         marked = list(st.session_state.get("marked", []))
                         clicked = _plot_click(img=payload["img"], points=payload["points"],
@@ -721,8 +734,14 @@ def page_dashboard():
                             elif action == "clear":
                                 st.session_state["marked"] = []
                             elif action == "drop":
+                                # This one changes the data, so the page does
+                                # have to be rebuilt.
                                 _drop_marked(marked)   # also clears the marks
-                            st.rerun()
+                                st.rerun()
+                            # Marking is otherwise purely visual and the
+                            # component has already drawn it, so no rerun:
+                            # that would run the whole script a second time
+                            # for a ring the user can already see.
                         st.caption("Hover a point for its Sl No and (X, Y) — click to mark "
                                    "points, then use **Deselect** on the plot toolbar.")
                     else:
@@ -736,22 +755,32 @@ def page_dashboard():
             # Marking controls live on the plot's own toolbar (see
             # plot_click/index.html) so they work full screen too; a second
             # copy here would just duplicate them.
-            png = io.BytesIO()
-            result.fig.savefig(png, format="png", dpi=200, bbox_inches="tight")
-            png.seek(0)
+            # Both exports are built by a callable, which Streamlit runs only
+            # when the button is actually clicked (on its own thread). Building
+            # them up front cost ~230 ms for the PNG and ~450 ms for the PDF on
+            # every rerun, for files that are usually never downloaded.
+            def _png_bytes(fig=result.fig):
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+                return buf.getvalue()
+
+            def _pdf_bytes(res=result, prm=p, name=param_name):
+                return report.build_pdf(
+                    res.fig, res.stats, parameter=name, unit=prm.get("unit", ""),
+                    tol=prm, username=current_username,
+                    logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
+
             bc = st.columns([1, 1, 2])
             got_png = bc[0].download_button(
-                "Download plot (PNG)", png,
+                "Download plot (PNG)", _png_bytes,
                 file_name=f"Datta - Srivastava Plot - {param_name}.png",
                 mime="image/png", icon=":material/image:",
                 use_container_width=True, key="dl_png")
-            pdf = st.session_state.get("pdf_bytes")
             got_pdf = bc[1].download_button(
-                "Export report", data=pdf if pdf else b"",
+                "Export report", _pdf_bytes,
                 file_name=st.session_state.get("pdf_name", "report.pdf"),
-                mime="application/pdf", disabled=pdf is None,
+                mime="application/pdf",
                 icon=":material/description:", use_container_width=True,
-                help=None if pdf else "Report unavailable — regenerate the plot",
                 key="dl_report_plot")
             # download_button returns True on the click's rerun.
             if got_png:

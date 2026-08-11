@@ -211,10 +211,42 @@ def list_users():
     return sorted(users, key=lambda r: r.get("last_login") or "", reverse=True)
 
 
+ROLE_CACHE_TTL = 60.0     # seconds
+
+
+def _role_cached(email):
+    try:
+        entry = st.session_state.get("_role_cache")
+    except Exception:
+        return None
+    if entry and entry[0] == email:
+        import time
+        if time.monotonic() - entry[1] < ROLE_CACHE_TTL:
+            return entry[2]
+    return None
+
+
+def _role_store(email, role):
+    try:
+        import time
+        st.session_state["_role_cache"] = (email, time.monotonic(), role)
+    except Exception:
+        pass
+
+
 def role_of(email):
+    """The user's role.
+
+    Briefly cached: this runs on every rerun, and a database round trip per
+    rerun is a visible drag. The TTL is short so a role changed by an admin in
+    another session takes effect within a minute rather than never.
+    """
     email = (email or "").strip().lower()
     if email in admin_emails():
         return ROLE_ADMIN
+    hit = _role_cached(email)
+    if hit is not None:
+        return hit
     url = _database_url()
     if url:
         def _q(conn):
@@ -222,9 +254,12 @@ def role_of(email):
                 cur.execute("SELECT role FROM app_users WHERE email = %s", (email,))
                 row = cur.fetchone()
                 return _norm_role(row[0]) if row else None
-        return _db_run(url, _q) or ROLE_USER
-    rec = _file_load().get("users", {}).get(email)
-    return _norm_role((rec or {}).get("role"))
+        role = _db_run(url, _q) or ROLE_USER
+    else:
+        rec = _file_load().get("users", {}).get(email)
+        role = _norm_role((rec or {}).get("role"))
+    _role_store(email, role)
+    return role
 
 
 def _count_role(role):
@@ -255,6 +290,10 @@ def set_role(email, new_role, *, actor_role=None):
         if email in data.get("users", {}):
             data["users"][email]["role"] = new_role
             _file_save(data)
+    try:                       # do not serve the old role from cache
+        st.session_state.pop("_role_cache", None)
+    except Exception:
+        pass
     return True, f"'{email}' is now {ROLE_LABELS[new_role]}."
 
 

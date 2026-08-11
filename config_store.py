@@ -90,16 +90,48 @@ def _save_all(data):
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
+_CACHE_KEY = "_params_cache"
+
+
+def _cache_clear():
+    """Drop the session cache after any write."""
+    try:
+        import streamlit as st
+        st.session_state.pop(_CACHE_KEY, None)
+    except Exception:
+        pass
+
+
 def load_params(username):
-    """This user's parameters only."""
+    """This user's parameters only.
+
+    Cached for the session: this is read on every rerun, and a round trip to
+    the database for each one is the difference between a snappy page and a
+    laggy one. Parameters are private to the user, so nothing else can change
+    them behind our back — every write below clears the cache.
+    """
+    try:
+        import streamlit as st
+        cached = st.session_state.get(_CACHE_KEY)
+        if cached and cached[0] == username:
+            return dict(cached[1])
+    except Exception:
+        st = None
     owned = _load_all().get(username)
-    return dict(owned) if isinstance(owned, dict) else {}
+    value = dict(owned) if isinstance(owned, dict) else {}
+    if st is not None:
+        try:
+            st.session_state[_CACHE_KEY] = (username, dict(value))
+        except Exception:
+            pass
+    return value
 
 
 def save_params(username, params):
     data = _load_all()
     data[username] = params
     _save_all(data)
+    _cache_clear()
 
 
 def rename_owner(old_username, new_username):
@@ -109,6 +141,7 @@ def rename_owner(old_username, new_username):
         return
     data[new_username] = data.pop(old_username)
     _save_all(data)
+    _cache_clear()
 
 
 def delete_owner(username):
@@ -118,6 +151,7 @@ def delete_owner(username):
         return
     del data[username]
     _save_all(data)
+    _cache_clear()
 
 
 # --------------------------------------------------------------------------
