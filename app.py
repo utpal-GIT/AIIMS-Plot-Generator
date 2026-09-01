@@ -666,6 +666,54 @@ def page_dashboard():
             help="Level for the interval around the mean difference (the red band). "
                  "The Limits of Agreement are separate and stay at ±1.96 SD.")
 
+        # --- Valid measurable range: computed, or declared by the user ---
+        def _calc_range():
+            """The range to start the manual boxes from: what the last plot
+            computed, else the span of the data on the chosen x basis."""
+            prev = st.session_state.get("result")
+            if prev is not None:
+                st_ = prev.stats
+                lo = st_.get("x_min_calc", st_.get("x_min"))
+                hi = st_.get("x_max_calc", st_.get("x_max"))
+                if lo is not None and hi is not None and np.isfinite(lo) and np.isfinite(hi):
+                    return float(lo), float(hi)
+            try:
+                xs = vd["Reference"].astype(float)
+                if x_basis == "Average":
+                    xs = (xs + vd["Measured"].astype(float)) / 2.0
+                if len(xs):
+                    return float(xs.min()), float(xs.max())
+            except Exception:
+                pass
+            return 0.0, 1.0
+
+        rc = st.columns([1.7, 1, 1, 1.4])
+        range_mode = rc[0].radio(
+            "Valid measurable range", ["Calculated", "Manual"], horizontal=True,
+            help="Calculated: where the OLS band stays inside the tolerance limits. "
+                 "Manual: the range you declare, which then drives the shaded region, "
+                 "the point categories and the valid-range counts.")
+
+        # Seed the boxes from the calculated range the first time Manual is
+        # chosen, then leave them alone — otherwise editing a bound would fight
+        # with the regeneration that edit triggers.
+        if range_mode == "Manual" and st.session_state.get("_range_mode_prev") != "Manual":
+            lo, hi = _calc_range()
+            st.session_state["manual_lo"], st.session_state["manual_hi"] = lo, hi
+        st.session_state["_range_mode_prev"] = range_mode
+        if "manual_lo" not in st.session_state:
+            st.session_state["manual_lo"], st.session_state["manual_hi"] = _calc_range()
+
+        manual = range_mode == "Manual"
+        man_lo = rc[1].number_input("Minimum", key="manual_lo", step=1.0,
+                                    format="%.2f", disabled=not manual)
+        man_hi = rc[2].number_input("Maximum", key="manual_hi", step=1.0,
+                                    format="%.2f", disabled=not manual)
+        c_lo, c_hi = _calc_range()
+        unit_txt = f" {p['unit']}" if p.get("unit") else ""
+        st.caption(f"{'Calculated range for comparison' if manual else 'Calculated from the OLS band and tolerance limits'}"
+                   f": {c_lo:.2f} – {c_hi:.2f}{unit_txt}")
+
     plot_box = st.container()
 
     # --- Compute ---
@@ -673,7 +721,8 @@ def page_dashboard():
     # customization changes (Enter pressed) or a row is ticked/unticked — the
     # selection is folded into the same signature.
     sel_sig = tuple(bool(v) for v in store["Include"])
-    current_opts = (x_basis, title, x_label, y_label, ols_ci, mean_ci, sel_sig)
+    current_opts = (x_basis, title, x_label, y_label, ols_ci, mean_ci,
+                    range_mode, man_lo, man_hi, sel_sig)
     # Keyed off last_opts rather than a successful result, so that re-selecting
     # rows recovers the plot after an error (e.g. everything was deselected).
     opts_changed = ("last_opts" in st.session_state
@@ -684,6 +733,8 @@ def page_dashboard():
                 edited_df, x_basis=x_basis,
                 title=title, x_label=x_label, y_label=y_label,
                 ols_ci=ols_ci, mean_ci=mean_ci,
+                range_mode="manual" if manual else "calculated",
+                range_min=man_lo, range_max=man_hi,
                 **config_store.param_plot_args(p),
             )
             st.session_state["result"] = result
@@ -913,8 +964,11 @@ def _render_statistics(s, excluded_n=0):
             return None
         return f"{mean_lvl}% CI [{lo:.2f}, {hi:.2f}]"
 
+    # A declared range must never read as a computed one.
+    user_range = s.get("range_mode") == "manual"
+
     metrics = [
-        _stat_card("Analysis range", rng),
+        _stat_card("Analysis range", rng, "User-defined" if user_range else None),
         _stat_card("Mean difference", f"{s['mean_diff']:.2f}", _mean_ci()),
         _stat_card("OLS slope", f"{s['slope']:.4f}",
                    _ci("slope_ci_low", "slope_ci_high", 4)),
@@ -941,7 +995,8 @@ def _render_statistics(s, excluded_n=0):
         ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#334155", True),
     ]
     valid_rows = [
-        ("Valid measurable range", rng, "#334155"),
+        ("Valid measurable range (user-defined)" if user_range
+         else "Valid measurable range", rng, "#334155"),
         ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)", "#334155"),
         ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#f59e0b"),
         ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#f59e0b", True),

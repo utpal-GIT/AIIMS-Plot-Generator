@@ -72,6 +72,9 @@ def generate_plot(
     y_label="Difference (Index - Reference)",
     ols_ci=DEFAULT_CI,
     mean_ci=DEFAULT_CI,
+    range_mode="calculated",
+    range_min=None,
+    range_max=None,
 ):
     """
     Build the method-comparison plot from a dataframe with columns
@@ -89,6 +92,12 @@ def generate_plot(
     mean_ci — confidence level (%) for the interval around the mean
               difference. Independent of the Limits of Agreement, which stay
               at the conventional +/-1.96 SD.
+
+    range_mode — "calculated" (default) derives the valid measurable range
+              from the CI x tolerance crossings; "manual" takes range_min and
+              range_max as given. The declared bounds are reported as typed,
+              but the shading and the boundary lines are clipped to the span
+              of the data, since there is nothing to mark beyond it.
 
     Returns a PlotResult(fig, stats, results_df).
     """
@@ -224,6 +233,25 @@ def generate_plot(
             x_max = min(cands) if cands else x_max_data
             x_max_is_limit = bool(cands)
 
+    # A user-declared range replaces the computed one for everything that
+    # follows: the shading, the point categories and the counts. The computed
+    # values are kept so the caller can still show what the data would say.
+    x_min_calc, x_max_calc = x_min, x_max
+    manual_range = str(range_mode).lower() == "manual"
+    if manual_range:
+        if (range_min is None or range_max is None
+                or not np.isfinite(float(range_min)) or not np.isfinite(float(range_max))):
+            raise ValueError("Valid measurable range: enter both a minimum and a maximum.")
+        x_min, x_max = float(range_min), float(range_max)
+        if x_min >= x_max:
+            raise ValueError("Valid measurable range: the minimum must be less than "
+                             "the maximum.")
+        # A boundary line marks where the range ends within the plot. A bound
+        # outside the data has nothing to mark, so it gets no line — the same
+        # rule the computed mode applies to a non-crossing boundary.
+        x_min_is_limit = bool(x_min_data <= x_min <= x_max_data)
+        x_max_is_limit = bool(x_min_data <= x_max <= x_max_data)
+
     # ---- 6. Tolerance-line segments for plotting (split at threshold) ----
     tol_upper_below = tol_lower_below = x_below = None
     tol_upper_above = tol_lower_above = x_above = None
@@ -282,9 +310,14 @@ def generate_plot(
     ax.set_facecolor("white")
     ax.set_axisbelow(True)
 
-    # Clinically valid region — light green shading behind everything.
-    if np.isfinite(x_min) and np.isfinite(x_max):
-        ax.axvspan(x_min, x_max, color="#bbf7d0", alpha=0.18, lw=0, zorder=0,
+    # Clinically valid region — light green shading behind everything. Clipped
+    # to the data, so a declared bound beyond the plotted points does not shade
+    # empty space (in calculated mode the range is inside the data already, so
+    # this changes nothing).
+    shade_lo = max(x_min, x_min_data) if np.isfinite(x_min) else np.nan
+    shade_hi = min(x_max, x_max_data) if np.isfinite(x_max) else np.nan
+    if np.isfinite(shade_lo) and np.isfinite(shade_hi) and shade_hi > shade_lo:
+        ax.axvspan(shade_lo, shade_hi, color="#bbf7d0", alpha=0.18, lw=0, zorder=0,
                    label="Clinically Valid Region")
 
     # Zero reference line.
@@ -416,7 +449,8 @@ def generate_plot(
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD, "bold"),
-        (f"Valid measurable range: {min_text} – {max_text}", C_NEUTRAL),
+        (f"Valid measurable range: {min_text} – {max_text}"
+         + ("  (user-defined)" if manual_range else ""), C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
         (f"     • Overestimated: {vr['over_n']} ({vr['over_pct']:.1f}%)", C_AMBER),
@@ -474,6 +508,11 @@ def generate_plot(
         "x_data_max": float(x_max_data),
         # True when the boundary is a CI x tolerance crossing rather than
         # simply the edge of the data (only crossings get a vertical line).
+        # "manual" when the range was declared rather than computed; the
+        # calculated values are kept either way so the UI can show both.
+        "range_mode": "manual" if manual_range else "calculated",
+        "x_min_calc": float(x_min_calc),
+        "x_max_calc": float(x_max_calc),
         "x_min_is_limit": bool(x_min_is_limit),
         "x_max_is_limit": bool(x_max_is_limit),
         "n_total": n_total,

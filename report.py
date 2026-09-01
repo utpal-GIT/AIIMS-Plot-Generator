@@ -113,7 +113,8 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
         return f"{base}   {mean_lvl}% CI {lo:.2f} to {hi:.2f}"
 
     story.append(_kv_table([
-        ["Valid analysis range", rng],
+        ["Valid analysis range" + (" (user-defined)"
+                                   if stats.get("range_mode") == "manual" else ""), rng],
         ["Mean-diff / OLS angle", f"{stats['ols_angle_deg']:.2f}°"],
         ["OLS slope", _coef(stats["slope"], "slope_ci_low", "slope_ci_high", 4)],
         ["OLS intercept", _coef(stats.get("intercept", float("nan")),
