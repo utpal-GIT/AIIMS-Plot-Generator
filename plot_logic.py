@@ -13,6 +13,19 @@ matplotlib.use("Agg")  # headless backend for web/server rendering
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import TextArea, VPacker, AnchoredOffsetbox
 import statsmodels.api as sm
+from scipy import stats as sps
+
+# Confidence levels are given as percentages by the caller.
+DEFAULT_CI = 95.0
+
+
+def _alpha(level):
+    """Two-sided alpha for a confidence level in percent, clamped to a sane range."""
+    level = float(level)
+    if not np.isfinite(level):
+        level = DEFAULT_CI
+    level = min(max(level, 50.0), 99.99)
+    return 1.0 - level / 100.0, level
 
 
 # --- HELPER: INTERSECTIONS BETWEEN TWO DISCRETE CURVES ---
@@ -57,6 +70,8 @@ def generate_plot(
     title="Method Comparison",
     x_label=None,
     y_label="Difference (Index - Reference)",
+    ols_ci=DEFAULT_CI,
+    mean_ci=DEFAULT_CI,
 ):
     """
     Build the method-comparison plot from a dataframe with columns
@@ -67,8 +82,18 @@ def generate_plot(
     x_basis == "Average":    x = (Reference + Measured) / 2   (Bland-Altman;
                              the FULL analysis is recomputed against x — Option A)
 
+    ols_ci  — confidence level (%) for the regression band and for the slope
+              and intercept intervals. It also sets the valid measurable
+              range, whose boundaries are CI x tolerance crossings, so a
+              higher level gives a wider band and a narrower valid range.
+    mean_ci — confidence level (%) for the interval around the mean
+              difference. Independent of the Limits of Agreement, which stay
+              at the conventional +/-1.96 SD.
+
     Returns a PlotResult(fig, stats, results_df).
     """
+    ols_alpha, ols_level = _alpha(ols_ci)
+    mean_alpha, mean_level = _alpha(mean_ci)
     # ---- 1. Prepare data ----
     df = df.copy()
     # Row identity for hover labels; the caller can supply the table's Sl. No,
@@ -102,9 +127,16 @@ def generate_plot(
     n_total = len(df)
 
     se_mean = std_diff / np.sqrt(n_total)
-    ci_mean_upper = mean_diff + 1.96 * se_mean
-    ci_mean_lower = mean_diff - 1.96 * se_mean
+    # t, not z: the SD is estimated from the same data, and this matches the
+    # regression intervals below (statsmodels uses t as well), so the two
+    # confidence settings mean the same thing.
+    t_mean = float(sps.t.ppf(1.0 - mean_alpha / 2.0, n_total - 1))
+    ci_mean_upper = mean_diff + t_mean * se_mean
+    ci_mean_lower = mean_diff - t_mean * se_mean
 
+    # Limits of Agreement stay at the conventional +/-1.96 SD. They are not a
+    # confidence interval for the mean but the span expected to contain most
+    # individual differences, so the setting above does not apply to them.
     loa_upper = mean_diff + 1.96 * std_diff
     loa_lower = mean_diff - 1.96 * std_diff
 
@@ -113,7 +145,7 @@ def generate_plot(
     X_sm = sm.add_constant(df["X"])
     model = sm.OLS(df["Diff"], X_sm).fit()
     slope = model.params.iloc[1]
-    coef_ci = model.conf_int(alpha=0.05)     # rows: const, X
+    coef_ci = model.conf_int(alpha=ols_alpha)     # rows: const, X
 
     # Angle between the (horizontal) mean-diff line and the OLS line,
     # in data units: mean-diff slope = 0, so angle = atan(OLS slope).
@@ -124,7 +156,7 @@ def generate_plot(
         if x_arr.size == 0:
             return np.array([]), np.array([]), np.array([])
         X_arr_sm = sm.add_constant(x_arr, has_constant="add")
-        pred = model.get_prediction(X_arr_sm).summary_frame(alpha=0.05)
+        pred = model.get_prediction(X_arr_sm).summary_frame(alpha=ols_alpha)
         return pred["mean"].values, pred["mean_ci_lower"].values, pred["mean_ci_upper"].values
 
     mean_vals, ci_lower_vals, ci_upper_vals = get_reg_predictions(df["X"].values)
@@ -261,12 +293,13 @@ def generate_plot(
     # OLS regression + 95% CI.
     ax.plot(df["X"], mean_vals, color="#2563eb", lw=2.2, label="OLS regression", zorder=4)
     ax.fill_between(df["X"], ci_lower_vals, ci_upper_vals, color="#2563eb",
-                    alpha=0.15, lw=0, label="95% OLS CI", zorder=3)
+                    alpha=0.15, lw=0, label=f"{ols_level:g}% OLS CI", zorder=3)
 
     # Mean difference + 95% CI band.
     ax.axhline(mean_diff, color="#ef4444", lw=1.8,
                label=f"Mean difference ({mean_diff:.2f})", zorder=3)
-    ax.axhspan(ci_mean_lower, ci_mean_upper, color="#ef4444", alpha=0.12, lw=0, zorder=1)
+    ax.axhspan(ci_mean_lower, ci_mean_upper, color="#ef4444", alpha=0.12, lw=0, zorder=1,
+               label=f"{mean_level:g}% CI of mean difference")
 
     # Limits of Agreement.
     ax.axhline(loa_upper, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85,
@@ -371,7 +404,7 @@ def generate_plot(
     lines = [
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
         ("", None),
-        ("REGRESSION LINE (95% CI)", C_HEAD, "bold"),
+        (f"REGRESSION LINE ({ols_level:g}% CI)", C_HEAD, "bold"),
         (f"Slope: {slope:.4f}  [{s_lo:.4f}, {s_hi:.4f}]", c_slope),
         (f"Intercept: {int_val:.3f}  [{i_lo:.3f}, {i_hi:.3f}]", c_int),
         ("", None),
@@ -424,6 +457,10 @@ def generate_plot(
         "intercept_ci_low": float(coef_ci.iloc[0, 0]),
         "intercept_ci_high": float(coef_ci.iloc[0, 1]),
         "ols_angle_deg": ols_angle_deg,
+        # Confidence levels actually used, so every label downstream (stats
+        # panel, PDF) can name the interval it is showing.
+        "ols_ci_level": float(ols_level),
+        "mean_ci_level": float(mean_level),
         "mean_diff": float(mean_diff),
         "std_diff": float(std_diff),
         "ci_mean_lower": float(ci_mean_lower),

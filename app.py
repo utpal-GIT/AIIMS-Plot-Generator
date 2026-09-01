@@ -23,6 +23,7 @@ import auth
 import config_store
 import report
 import usage
+import plot_logic
 from plot_logic import generate_plot
 
 # Static component (plain HTML/JS, no build step) that renders the plot image
@@ -642,7 +643,7 @@ def page_dashboard():
 
     # --- Plot: options (collapsible), then the plot ---
     st.subheader("Plot")
-    with st.expander("Plot options — axis basis, title, labels"):
+    with st.expander("Plot options — axis basis, title, labels, confidence levels"):
         oc = st.columns([1, 1.3, 1.3, 1.3])
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
                                   help="Average = (Index + Reference) / 2 (Bland–Altman).")
@@ -651,6 +652,20 @@ def page_dashboard():
         x_label = oc[2].text_input("X-axis label", value=default_x)
         y_label = oc[3].text_input("Y-axis label", value="Difference (Index - Reference)")
 
+        cc = st.columns([1, 1.3, 2.6])
+        ols_ci = cc[0].number_input(
+            "OLS confidence (%)", min_value=50.0, max_value=99.9,
+            value=float(plot_logic.DEFAULT_CI), step=1.0, format="%.1f",
+            help="Level for the regression band and for the slope and intercept "
+                 "intervals. The valid measurable range is where that band stays "
+                 "inside the tolerance limits, so a higher level widens the band "
+                 "and narrows the valid range.")
+        mean_ci = cc[1].number_input(
+            "Mean difference confidence (%)", min_value=50.0, max_value=99.9,
+            value=float(plot_logic.DEFAULT_CI), step=1.0, format="%.1f",
+            help="Level for the interval around the mean difference (the red band). "
+                 "The Limits of Agreement are separate and stay at ±1.96 SD.")
+
     plot_box = st.container()
 
     # --- Compute ---
@@ -658,7 +673,7 @@ def page_dashboard():
     # customization changes (Enter pressed) or a row is ticked/unticked — the
     # selection is folded into the same signature.
     sel_sig = tuple(bool(v) for v in store["Include"])
-    current_opts = (x_basis, title, x_label, y_label, sel_sig)
+    current_opts = (x_basis, title, x_label, y_label, ols_ci, mean_ci, sel_sig)
     # Keyed off last_opts rather than a successful result, so that re-selecting
     # rows recovers the plot after an error (e.g. everything was deselected).
     opts_changed = ("last_opts" in st.session_state
@@ -668,6 +683,7 @@ def page_dashboard():
             result = generate_plot(
                 edited_df, x_basis=x_basis,
                 title=title, x_label=x_label, y_label=y_label,
+                ols_ci=ols_ci, mean_ci=mean_ci,
                 **config_store.param_plot_args(p),
             )
             st.session_state["result"] = result
@@ -877,18 +893,29 @@ def _render_statistics(s, excluded_n=0):
     # Key metrics. On a difference plot the no-bias value is 0 for BOTH
     # coefficients (the slope here is the classic slope minus 1), so a CI
     # clear of 0 is what indicates proportional / constant bias.
+    # The level is whatever was set in Plot options when the plot was built,
+    # so the label always describes the interval actually shown.
+    ols_lvl = f"{s.get('ols_ci_level', 95.0):g}"
+    mean_lvl = f"{s.get('mean_ci_level', 95.0):g}"
+
     def _ci(lo_key, hi_key, dp):
         lo, hi = s.get(lo_key), s.get(hi_key)
         if lo is None or hi is None or not (math.isfinite(lo) and math.isfinite(hi)):
             # A plot generated before CIs existed carries no interval; say so
             # rather than silently dropping the line.
-            return "95% CI — click Generate plot to compute"
+            return f"{ols_lvl}% CI — click Generate plot to compute"
         flag = "" if lo <= 0 <= hi else "  · excludes 0"
-        return f"95% CI [{lo:.{dp}f}, {hi:.{dp}f}]{flag}"
+        return f"{ols_lvl}% CI [{lo:.{dp}f}, {hi:.{dp}f}]{flag}"
+
+    def _mean_ci():
+        lo, hi = s.get("ci_mean_lower"), s.get("ci_mean_upper")
+        if lo is None or hi is None or not (math.isfinite(lo) and math.isfinite(hi)):
+            return None
+        return f"{mean_lvl}% CI [{lo:.2f}, {hi:.2f}]"
 
     metrics = [
         _stat_card("Analysis range", rng),
-        _stat_card("Mean difference", f"{s['mean_diff']:.2f}"),
+        _stat_card("Mean difference", f"{s['mean_diff']:.2f}", _mean_ci()),
         _stat_card("OLS slope", f"{s['slope']:.4f}",
                    _ci("slope_ci_low", "slope_ci_high", 4)),
         _stat_card("OLS intercept", f"{s.get('intercept', float('nan')):.3f}",

@@ -92,13 +92,25 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
     rng = (f"{stats['x_min']:.2f} – {stats['x_max']:.2f}"
            if _finite(stats["x_min"]) and _finite(stats["x_max"]) else "No valid range")
     story.append(Paragraph("Statistics", ss["Sec"]))
+    # Confidence levels as chosen in Plot options, so the report names the
+    # intervals it is actually reporting.
+    ols_lvl = f"{stats.get('ols_ci_level', 95.0):g}"
+    mean_lvl = f"{stats.get('mean_ci_level', 95.0):g}"
+
     def _coef(value, lo_key, hi_key, dp):
-        """Coefficient with its 95% CI; on a difference plot 0 means no bias."""
+        """Coefficient with its CI; on a difference plot 0 means no bias."""
         lo, hi = stats.get(lo_key), stats.get(hi_key)
         if lo is None or hi is None or not (_finite(lo) and _finite(hi)):
             return f"{value:.{dp}f}"
         note = "" if lo <= 0 <= hi else "  (excludes 0)"
-        return f"{value:.{dp}f}   95% CI {lo:.{dp}f} to {hi:.{dp}f}{note}"
+        return f"{value:.{dp}f}   {ols_lvl}% CI {lo:.{dp}f} to {hi:.{dp}f}{note}"
+
+    def _mean_text():
+        lo, hi = stats.get("ci_mean_lower"), stats.get("ci_mean_upper")
+        base = f"{stats['mean_diff']:.2f}"
+        if lo is None or hi is None or not (_finite(lo) and _finite(hi)):
+            return base
+        return f"{base}   {mean_lvl}% CI {lo:.2f} to {hi:.2f}"
 
     story.append(_kv_table([
         ["Valid analysis range", rng],
@@ -106,7 +118,7 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
         ["OLS slope", _coef(stats["slope"], "slope_ci_low", "slope_ci_high", 4)],
         ["OLS intercept", _coef(stats.get("intercept", float("nan")),
                                 "intercept_ci_low", "intercept_ci_high", 3)],
-        ["Mean difference", f"{stats['mean_diff']:.2f}"],
+        ["Mean difference", _mean_text()],
         ["Total points", str(stats["n_total"])],
         ["Points in valid range", str(stats["n_in_range"])],
     ], [55 * mm, 100 * mm]))
