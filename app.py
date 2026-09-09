@@ -822,7 +822,7 @@ def page_dashboard():
             # Marking controls live on the plot's own toolbar (see
             # plot_click/index.html) so they work full screen too; a second
             # copy here would just duplicate them.
-            # Both exports are built by a callable, which Streamlit runs only
+            # Every export is built by a callable, which Streamlit runs only
             # when the button is actually clicked (on its own thread). Building
             # them up front cost ~230 ms for the PNG and ~450 ms for the PDF on
             # every rerun, for files that are usually never downloaded.
@@ -837,7 +837,10 @@ def page_dashboard():
                     tol=prm, username=current_username,
                     logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
 
-            bc = st.columns([1, 1, 2])
+            def _data_csv(res=result):
+                return _results_csv(res)
+
+            bc = st.columns([1, 1, 1, 1])
             got_png = bc[0].download_button(
                 "Download plot (PNG)", _png_bytes,
                 file_name=f"Datta - Srivastava Plot - {param_name}.png",
@@ -849,11 +852,18 @@ def page_dashboard():
                 mime="application/pdf",
                 icon=":material/description:", use_container_width=True,
                 key="dl_report_plot")
+            got_csv = bc[2].download_button(
+                "Export data (CSV)", _data_csv,
+                file_name=f"Datta - Srivastava Data - {param_name}.csv",
+                mime="text/csv", icon=":material/table:",
+                use_container_width=True, key="dl_data_csv")
             # download_button returns True on the click's rerun.
             if got_png:
                 usage.log(current_username, usage.DOWNLOAD_PNG)
             if got_pdf:
                 usage.log(current_username, usage.DOWNLOAD_PDF)
+            if got_csv:
+                usage.log(current_username, usage.DOWNLOAD_CSV)
 
 
 def _tol_desc(value, tol_type):
@@ -892,6 +902,29 @@ def _params_csv(params):
             "Above type": above_t,
         })
     return pd.DataFrame(rows).to_csv(index=False).encode("utf-8")
+
+
+def _results_csv(result):
+    """The plotted points as CSV: one row per point, in plotted order.
+
+    Raw numbers, so the file is usable in a sheet — no rounding, no units
+    glued onto values. "Measured" is the stored key for what the interface
+    calls the Index method, so it is renamed here to match what the user sees.
+    """
+    df = result.results_df.copy()
+    df = df.rename(columns={"Measured": "Index", "Diff": "Difference",
+                            "Tol": "Tolerance",
+                            "in_valid_range": "In valid range"})
+    for col in ("Outlier", "In valid range"):
+        if col in df.columns:
+            df[col] = df[col].map(lambda v: "Yes" if bool(v) else "No")
+    # The marker colour a reader sees on the plot, spelled out — same wording
+    # as the legend and the point-category cards, from the same source.
+    pts = getattr(result, "points", None)
+    if pts is not None and len(pts) == len(df):
+        labels = {key: label for label, key, _ in CAT_COLORS}
+        df["Category"] = [labels.get(c, c) for c in pts["cat"]]
+    return df.to_csv(index=False).encode("utf-8")
 
 
 def _stat_card(label, value, sub=None):

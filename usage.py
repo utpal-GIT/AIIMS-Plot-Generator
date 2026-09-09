@@ -21,7 +21,8 @@ LOGIN = "login"
 GENERATE = "generate"
 DOWNLOAD_PNG = "download_png"
 DOWNLOAD_PDF = "download_pdf"
-KINDS = (LOGIN, GENERATE, DOWNLOAD_PNG, DOWNLOAD_PDF)
+DOWNLOAD_CSV = "download_csv"
+KINDS = (LOGIN, GENERATE, DOWNLOAD_PNG, DOWNLOAD_PDF, DOWNLOAD_CSV)
 
 EVENTS_PATH = os.environ.get("USAGE_EVENTS_PATH") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "usage_events.jsonl"

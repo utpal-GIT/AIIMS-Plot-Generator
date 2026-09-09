@@ -528,8 +528,16 @@ def generate_plot(
         "x_basis": x_basis,
     }
 
-    results_df = df[["Reference", "Measured", "X", "Diff", "Tol", "is_outlier"]].copy()
-    results_df = results_df.rename(columns={"X": x_basis, "is_outlier": "Outlier"})
+    # Per-point results, in plotted order. Carries the row's Sl. No so a value
+    # can be traced back to the data table, and both classifications, so the
+    # export says the same thing about a point as its marker colour does.
+    cols = ["SlNo", "Reference", "Measured", "X", "Diff", "Tol", "is_outlier"]
+    if x_basis != "Average":
+        cols.remove("X")          # x is the Reference column; don't repeat it
+    results_df = df[cols].copy()
+    results_df["in_valid_range"] = mask_x_range.to_numpy()
+    results_df = results_df.rename(columns={"SlNo": "Sl. No", "X": "Average",
+                                            "is_outlier": "Outlier"})
 
     points = pd.DataFrame({
         "sl_no": df["SlNo"].astype(int),
