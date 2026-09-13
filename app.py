@@ -918,9 +918,14 @@ def _params_csv(params):
 def _results_csv(result):
     """The plotted points as CSV, one row per point, ordered by Sl. No.
 
-    Raw numbers, so the file is usable in a sheet — no rounding, no units
-    glued onto values. "Measured" is the stored key for what the interface
-    calls the Index method, so it is renamed here to match what the user sees.
+    Values are rounded to 2 decimals. Subtracting two 2-decimal readings
+    leaves binary noise — 0.35 - 0.12 prints as 0.22999999999999998, which is
+    the exact value of the float but reads as a fault in a spreadsheet.
+    Rounding is for the file only; every flag and statistic was computed from
+    the full-precision values.
+
+    "Measured" is the stored key for what the interface calls the Index
+    method, so it is renamed here to match what the user sees.
     """
     df = result.results_df.copy()
     df = df.rename(columns={"Measured": "Index", "Diff": "Difference",
@@ -941,6 +946,10 @@ def _results_csv(result):
     # the data table, so give it the table's order instead.
     if "Sl. No" in df.columns:
         df = df.sort_values("Sl. No", kind="stable")
+    num = [c for c in df.select_dtypes("number").columns if c != "Sl. No"]
+    # Adding zero turns a rounded -0.0 back into 0.0, which is what a reader
+    # expects to see for a difference of nothing.
+    df[num] = df[num].round(2) + 0.0
     return _csv_bytes(df)
 
 
