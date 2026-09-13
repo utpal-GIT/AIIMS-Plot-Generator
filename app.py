@@ -873,6 +873,17 @@ def _tol_desc(value, tol_type):
     return f"± {value:g}", "absolute"
 
 
+def _csv_bytes(df):
+    """Encode a frame as CSV for download.
+
+    utf-8-sig, not plain utf-8: Excel assumes the system code page for a CSV
+    with no byte-order mark and mangles anything outside ASCII — a µ in a unit,
+    an accent in a name. The BOM tells it the file is UTF-8. Every other reader
+    (pandas, LibreOffice, Sheets) skips the mark.
+    """
+    return df.to_csv(index=False).encode("utf-8-sig")
+
+
 def _params_csv(params):
     """Configurations as CSV — raw numbers, so the file is usable in a sheet.
 
@@ -901,11 +912,11 @@ def _params_csv(params):
             "Above tolerance": above_v,
             "Above type": above_t,
         })
-    return pd.DataFrame(rows).to_csv(index=False).encode("utf-8")
+    return _csv_bytes(pd.DataFrame(rows))
 
 
 def _results_csv(result):
-    """The plotted points as CSV: one row per point, in plotted order.
+    """The plotted points as CSV, one row per point, ordered by Sl. No.
 
     Raw numbers, so the file is usable in a sheet — no rounding, no units
     glued onto values. "Measured" is the stored key for what the interface
@@ -919,12 +930,18 @@ def _results_csv(result):
         if col in df.columns:
             df[col] = df[col].map(lambda v: "Yes" if bool(v) else "No")
     # The marker colour a reader sees on the plot, spelled out — same wording
-    # as the legend and the point-category cards, from the same source.
+    # as the legend and the point-category cards, from the same source. The
+    # separator is plain ASCII here: the on-screen middle dot survives a
+    # spreadsheet import badly, and it carries no meaning.
     pts = getattr(result, "points", None)
     if pts is not None and len(pts) == len(df):
-        labels = {key: label for label, key, _ in CAT_COLORS}
+        labels = {key: label.replace("·", "-") for label, key, _ in CAT_COLORS}
         df["Category"] = [labels.get(c, c) for c in pts["cat"]]
-    return df.to_csv(index=False).encode("utf-8")
+    # results_df is in plotted order (sorted by x). The export is read against
+    # the data table, so give it the table's order instead.
+    if "Sl. No" in df.columns:
+        df = df.sort_values("Sl. No", kind="stable")
+    return _csv_bytes(df)
 
 
 def _stat_card(label, value, sub=None):
@@ -1416,7 +1433,7 @@ def page_settings():
             for u in users]
     if rows:
         st.download_button("Export usage (CSV)",
-                           pd.DataFrame(rows).to_csv(index=False).encode(),
+                           _csv_bytes(pd.DataFrame(rows)),
                            file_name="datta-srivastava-usage.csv", mime="text/csv",
                            icon=":material/download:", key="dl_usage")
 
