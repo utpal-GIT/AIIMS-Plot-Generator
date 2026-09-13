@@ -462,10 +462,30 @@ def page_dashboard():
         cc = st.columns([2.4, 3.4, 1.8], vertical_alignment="top")
         with cc[0]:
             st.markdown(lbl.format("Test parameter"), unsafe_allow_html=True)
+            names = list(params.keys())
+            # The choice has to outlive two things. Visiting another tab stops
+            # this widget being rendered, and Streamlit drops the state of a
+            # widget it did not draw — so the selection is mirrored into a
+            # plain session key. A browser reload starts a new session and
+            # clears that too, so it is also kept in the URL.
+            remembered = st.session_state.get("sel_param")
+            if not remembered:
+                try:      # repeated keys come back as a list
+                    q = st.query_params.get("param")
+                    remembered = q[0] if isinstance(q, (list, tuple)) and q else q
+                except Exception:
+                    remembered = None
+            idx = names.index(remembered) if remembered in names else 0
             param_name = st.selectbox(
-                "Test parameter", list(params.keys()), label_visibility="collapsed",
+                "Test parameter", names, index=idx, label_visibility="collapsed",
                 format_func=lambda k: k + (f" ({params[k]['unit']})" if params[k].get("unit") else ""),
             )
+            if st.session_state.get("sel_param") != param_name:
+                st.session_state["sel_param"] = param_name
+                try:
+                    st.query_params["param"] = param_name
+                except Exception:
+                    pass          # no URL to write to (tests, embedded use)
         p = params[param_name]
         with cc[1]:
             st.markdown(lbl.format("Tolerance limits"), unsafe_allow_html=True)
