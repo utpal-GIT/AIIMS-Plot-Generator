@@ -292,6 +292,21 @@ st.markdown(
       /* White dropdown to match the control-bar design */
       .st-key-ctrlbar [data-baseweb="select"] > div{
         background-color:#ffffff !important; border:1px solid #d1d5db !important;}
+      /* Dropdown drawing its top row blank (Streamlit 1.57 selectbox bug).
+         On opening, the list scrolls to centre the selected option, but the
+         offset is never capped at how far the list can really scroll. When
+         every option fits with no room to scroll — e.g. exactly 7 options with
+         the 7th selected — the browser clamps the scroll to 0, which is no
+         change, so no scroll event fires; the virtual list still believes it
+         is scrolled and never draws the first row(s).
+         Two pixels of scroll room make the clamp land on a non-zero position,
+         the event fires, and the list re-syncs. min-height, not height, so a
+         long list keeps its full content height. The scrollbar that 2px would
+         summon is hidden; the list still scrolls by wheel, touch and keys. */
+      [data-testid="stSelectboxVirtualDropdown"] > div > div{
+        min-height:calc(100% + 2px);}
+      [data-testid="stSelectboxVirtualDropdown"] > div{scrollbar-width:none;}
+      [data-testid="stSelectboxVirtualDropdown"] > div::-webkit-scrollbar{display:none;}
       /* Sidebar: no scrollbars */
       [data-testid="stSidebarContent"]{overflow:hidden !important;}
       /* Sidebar bottom section pinned to the bottom (logout + user card) */
