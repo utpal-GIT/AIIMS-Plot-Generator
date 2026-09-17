@@ -103,7 +103,13 @@ def _cache_clear():
 
 
 def load_params(username):
-    """This user's parameters only.
+    """This user's parameters only, in alphabetical order.
+
+    The order is imposed here because storage has none to give: Postgres
+    jsonb keeps object keys sorted by length, so parameters came back as
+    Albumin, Glucose, Creatinine... and a newly added short name jumped to
+    the top. Sorting once at the source keeps the dashboard dropdown, the
+    Configurations table and its CSV export in the same order.
 
     Cached for the session: this is read on every rerun, and a round trip to
     the database for each one is the difference between a snappy page and a
@@ -118,7 +124,9 @@ def load_params(username):
     except Exception:
         st = None
     owned = _load_all().get(username)
-    value = dict(owned) if isinstance(owned, dict) else {}
+    owned = owned if isinstance(owned, dict) else {}
+    # casefold so "albumin" sits with "Albumin"; the name itself breaks ties.
+    value = dict(sorted(owned.items(), key=lambda kv: (kv[0].casefold(), kv[0])))
     if st is not None:
         try:
             st.session_state[_CACHE_KEY] = (username, dict(value))
