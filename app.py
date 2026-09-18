@@ -9,8 +9,10 @@ and applied on their Dashboard. Reports are exported as PDF.
 """
 
 import base64
+import html
 import io
 import os
+import time
 
 import numpy as np
 import pandas as pd
@@ -270,6 +272,13 @@ st.markdown(
       .plothover i.b:hover::after{bottom:auto; top:135%;}
       .dash-title{font-size:1.55rem;font-weight:600;color:#0f172a;line-height:1.1;}
       .dash-sub{font-size:13px;color:#64748b;margin:4px 0 0;}
+      /* Indeterminate bar under the wordmark on the launching screen */
+      .launchbar{width:190px;height:3px;border-radius:2px;background:#e5e7eb;
+                 margin:16px auto 0;overflow:hidden;}
+      .launchbar span{display:block;width:45%;height:100%;border-radius:2px;
+                      background:#16a34a;animation:launchslide 1.1s ease-in-out infinite;}
+      @keyframes launchslide{0%{transform:translateX(-110%);}
+                             100%{transform:translateX(240%);}}
       /* Force inner padding on the control bar so labels clear the border
          (robust across Streamlit versions via the stable st-key class) */
       .st-key-ctrlbar{padding:16px 18px !important;}
@@ -337,13 +346,38 @@ def _logo_data_uri(path):
         return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
 
 
+NAME_TITLES = {"dr", "mr", "mrs", "ms", "prof", "miss"}
+
+
 def _initials(name):
-    titles = {"dr", "mr", "mrs", "ms", "prof", "miss"}
-    parts = [p.strip(".") for p in (name or "").split() if p.strip(".").lower() not in titles]
+    parts = [p.strip(".") for p in (name or "").split()
+             if p.strip(".").lower() not in NAME_TITLES]
     if not parts:
         parts = (name or "?").split()
     letters = [p[0] for p in parts[:2] if p]
     return ("".join(letters).upper() or "?")
+
+
+def _first_name(name, email="", given=""):
+    """Name to greet someone by: "Dr. Rajas Kulkarni" -> "Rajas".
+
+    Google sends given_name separately, and that is what the person set
+    themselves, so it wins when present — no guessing at which word of a full
+    name is the first one. Only clear honorifics are dropped; "Md" is left
+    alone, since it is usually part of a name rather than a title.
+
+    Google does not always send a name at all. Rather than greet someone by
+    their email address, fall back to its local part, and to a neutral word
+    when there is nothing usable.
+    """
+    raw = (given or "").strip() or (name or "").strip()
+    if not raw or "@" in raw:
+        local = (email or raw).split("@")[0]
+        raw = local.replace(".", " ").replace("_", " ").strip().title()
+    parts = [p for p in (w.strip(".") for w in raw.split())
+             if p and p.lower() not in NAME_TITLES]
+    parts = parts or [w.strip(".") for w in raw.split() if w.strip(".")]
+    return parts[0] if parts else "there"
 
 
 _AVATAR_PALETTE = [
@@ -438,14 +472,31 @@ if not st.user.is_logged_in:
 _claims = st.user.to_dict() if hasattr(st.user, "to_dict") else dict(st.user)
 current_username = (_claims.get("email") or "").strip().lower()   # identity = email
 current_name = _claims.get("name") or current_username
+current_given = _claims.get("given_name") or ""   # what to greet them by
 current_picture = _claims.get("picture")
 
-# Record the sign-in once per session, then read the role back.
+# Record the sign-in once per session, then read the role back. This is the
+# first run after Google hands the user back, and it writes to the database —
+# so it is the natural moment to say the app is starting. The splash fills a
+# wait that already exists rather than adding one; MIN_SPLASH only holds it
+# long enough to be read when that write returns quickly.
+MIN_SPLASH = 0.8          # seconds
+
 if not st.session_state.get("_login_synced"):
+    started = time.monotonic()
+    splash = st.empty()
+    with splash.container():
+        cols = st.columns([1, 1.2, 1])
+        with cols[1]:
+            _auth_brand("Launching Datta - Srivastava Plotter")
+            st.markdown("<div class='launchbar'><span></span></div>",
+                        unsafe_allow_html=True)
     auth.sync_login(current_username, name=current_name,
                     sub=_claims.get("sub"), picture=current_picture)
     usage.log_once(current_username, usage.LOGIN, "session")
     st.session_state["_login_synced"] = True
+    time.sleep(max(0.0, MIN_SPLASH - (time.monotonic() - started)))
+    splash.empty()        # the app proper renders below
 
 current_role = auth.role_of(current_username) or auth.ROLE_USER
 is_manager = auth.is_manager(current_role)
@@ -459,7 +510,10 @@ def page_dashboard():
 
     # ---- Header ----
     st.markdown(
-        "<div class='dash-title'>Dashboard</div>"
+        # Escaped: the name comes from the Google profile, and this block is
+        # rendered as HTML.
+        f"<div class='dash-title'>Hi "
+        f"{html.escape(_first_name(current_name, current_username, current_given))}</div>"
         "<div class='dash-sub'>Generate a method-comparison difference plot and statistics.</div>",
         unsafe_allow_html=True,
     )
@@ -1543,7 +1597,7 @@ with st.sidebar:
             f"font-weight:600; font-size:13px; flex:none;'>{_initials(current_name)}</div>"
             "<div style='line-height:1.2; min-width:0;'>"
             f"<div style='font-size:14px; font-weight:600; color:#1f2937; white-space:nowrap; "
-            f"overflow:hidden; text-overflow:ellipsis;'>{current_name}</div>"
+            f"overflow:hidden; text-overflow:ellipsis;'>{html.escape(current_name)}</div>"
             f"<div style='font-size:12px; color:#94a3b8;'>{auth.ROLE_LABELS.get(current_role, current_role)}</div>"
             "</div></div>",
             unsafe_allow_html=True,
