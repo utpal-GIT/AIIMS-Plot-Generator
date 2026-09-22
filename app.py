@@ -799,10 +799,17 @@ def page_dashboard():
         oc = st.columns([1, 1.3, 1.3, 1.3])
         x_basis = oc[0].selectbox("X-axis basis", ["Reference", "Average"],
                                   help="Average = (Index + Reference) / 2 (Bland–Altman).")
-        default_x = "Average (Index + Reference) / 2" if x_basis == "Average" else "Reference"
+        # Units follow the Clinical Chemistry convention, "Reference, mg/dL":
+        # a comma rather than brackets, since two of these labels already end
+        # in a parenthesis. They are defaults only — a label you type is left
+        # as you typed it.
+        _unit = (p.get("unit") or "").strip()
+        _us = f", {_unit}" if _unit else ""
+        default_x = ("Average (Index + Reference) / 2" if x_basis == "Average"
+                     else "Reference") + _us
         title = oc[1].text_input("Plot title", value=f"Datta - Srivastava Plot - {param_name}")
         x_label = oc[2].text_input("X-axis label", value=default_x)
-        y_label = oc[3].text_input("Y-axis label", value="Difference (Index - Reference)")
+        y_label = oc[3].text_input("Y-axis label", value="Difference (Index - Reference)" + _us)
 
         cc = st.columns([1, 1.3, 2.6])
         ols_ci = cc[0].number_input(
@@ -890,6 +897,7 @@ def page_dashboard():
                 ols_ci=ols_ci, mean_ci=mean_ci,
                 range_mode="manual" if manual else "calculated",
                 range_min=man_lo, range_max=man_hi,
+                unit=p.get("unit", ""),
                 **config_store.param_plot_args(p),
             )
             st.session_state["result"] = result
@@ -1151,7 +1159,11 @@ def _summary_card(title, rows):
 
 def _render_statistics(s, excluded_n=0):
     import math
-    rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}"
+    # The parameter's unit, after every value that carries it (not the slope,
+    # where it cancels). Escaped: it is text the user typed, shown as HTML.
+    unit = html.escape((s.get("unit") or "").strip())
+    u = f" {unit}" if unit else ""
+    rng = (f"{s['x_min']:.2f} – {s['x_max']:.2f}{u}"
            if math.isfinite(s["x_min"]) and math.isfinite(s["x_max"]) else "No valid range")
     ov, vr = s["overall"], s["valid_range"]
 
@@ -1183,17 +1195,17 @@ def _render_statistics(s, excluded_n=0):
 
     metrics = [
         _stat_card("Analysis range", rng, "User-defined" if user_range else None),
-        _stat_card("Mean difference", f"{s['mean_diff']:.2f}", _mean_ci()),
+        _stat_card("Mean difference", f"{s['mean_diff']:.2f}{u}", _mean_ci()),
         _stat_card("OLS slope", f"{s['slope']:.4f}",
                    _ci("slope_ci_low", "slope_ci_high", 4)),
-        _stat_card("OLS intercept", f"{s.get('intercept', float('nan')):.3f}",
+        _stat_card("OLS intercept", f"{s.get('intercept', float('nan')):.3f}{u}",
                    _ci("intercept_ci_low", "intercept_ci_high", 3)),
         _stat_card("Mean-diff / OLS angle", f"{s['ols_angle_deg']:.2f}°"),
-        _stat_card("SD of differences", f"{s.get('std_diff', float('nan')):.3f}"),
+        _stat_card("SD of differences", f"{s.get('std_diff', float('nan')):.3f}{u}"),
     ]
 
     # Each card states the span it is computed over.
-    data_rng = (f"{s['x_data_min']:.2f} – {s['x_data_max']:.2f}"
+    data_rng = (f"{s['x_data_min']:.2f} – {s['x_data_max']:.2f}{u}"
                 if math.isfinite(s.get("x_data_min", float("nan")))
                 and math.isfinite(s.get("x_data_max", float("nan"))) else "—")
 

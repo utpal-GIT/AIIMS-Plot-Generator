@@ -18,6 +18,11 @@ from scipy import stats as sps
 # Confidence levels are given as percentages by the caller.
 DEFAULT_CI = 95.0
 
+# Vertical spacing in the right-hand column, where the legend and the summary
+# box must fit together (see the legend call in generate_plot).
+LEGEND_SPACING = 0.3      # matplotlib default 0.5
+BOX_LINE_SEP = 1.8        # points between summary-box lines; was 2.5
+
 
 def _alpha(level):
     """Two-sided alpha for a confidence level in percent, clamped to a sane range."""
@@ -75,6 +80,7 @@ def generate_plot(
     range_mode="calculated",
     range_min=None,
     range_max=None,
+    unit="",
 ):
     """
     Build the method-comparison plot from a dataframe with columns
@@ -99,10 +105,17 @@ def generate_plot(
               but the shading and the boundary lines are clipped to the span
               of the data, since there is nothing to mark beyond it.
 
+    unit    — the parameter's unit (e.g. "mg/dL"), shown after every value
+              and range that carries it. Optional; nothing is appended when
+              it is blank. The slope is left without one: both axes share the
+              unit, so it cancels.
+
     Returns a PlotResult(fig, stats, results_df).
     """
     ols_alpha, ols_level = _alpha(ols_ci)
     mean_alpha, mean_level = _alpha(mean_ci)
+    unit = (unit or "").strip()
+    u = f" {unit}" if unit else ""          # appended after any value in the unit
     # ---- 1. Prepare data ----
     df = df.copy()
     # Row identity for hover labels; the caller can supply the table's Sl. No,
@@ -330,7 +343,7 @@ def generate_plot(
 
     # Mean difference + 95% CI band.
     ax.axhline(mean_diff, color="#ef4444", lw=1.8,
-               label=f"Mean difference ({mean_diff:.2f})", zorder=3)
+               label=f"Mean difference ({mean_diff:.2f}{u})", zorder=3)
     ax.axhspan(ci_mean_lower, ci_mean_upper, color="#ef4444", alpha=0.12, lw=0, zorder=1,
                label=f"{mean_level:g}% CI of mean difference")
 
@@ -340,14 +353,32 @@ def generate_plot(
     ax.axhline(loa_lower, color="#a855f7", linestyle="--", lw=1.3, alpha=0.85, zorder=2)
 
 
-    # Tolerance limits.
+    # Tolerance limits, with their values in the legend beside the swatch that
+    # draws them. A percentage tolerance carries no unit; an absolute one is in
+    # the parameter's unit.
+    def _tol_text(val, typ):
+        return f"± {val:g}%" if typ == "Percentage Tolerance" else f"± {val:g}{u}"
+
+    TOL_COLOR = "#059669"
+    if np.isfinite(threshold):
+        # calculate_tolerance: x <= threshold uses the below limit.
+        lab_below = f"Tolerance ≤ {threshold:g}{u} ({_tol_text(val_below, type_below)})"
+        lab_above = f"Tolerance > {threshold:g}{u} ({_tol_text(val_above, type_above)})"
+    else:
+        # No threshold (pushed to -inf): every value takes the above limit.
+        lab_below, lab_above = None, f"Tolerance limit ({_tol_text(val_above, type_above)})"
     if x_below is not None:
-        ax.plot(x_below, tol_upper_below, color="#059669", lw=1.6, label="Tolerance limit", zorder=2)
-        ax.plot(x_below, tol_lower_below, color="#059669", lw=1.6, zorder=2)
+        ax.plot(x_below, tol_upper_below, color=TOL_COLOR, lw=1.6, label=lab_below, zorder=2)
+        ax.plot(x_below, tol_lower_below, color=TOL_COLOR, lw=1.6, zorder=2)
+    elif lab_below:
+        # The data never reaches below the threshold, so that limit is not
+        # drawn — but it is still part of the parameter, so list it.
+        ax.plot([], [], color=TOL_COLOR, lw=1.6, label=lab_below)
     if x_above is not None:
-        label_above = "Tolerance limit" if x_below is None else None
-        ax.plot(x_above, tol_upper_above, color="#059669", lw=1.6, label=label_above, zorder=2)
-        ax.plot(x_above, tol_lower_above, color="#059669", lw=1.6, zorder=2)
+        ax.plot(x_above, tol_upper_above, color=TOL_COLOR, lw=1.6, label=lab_above, zorder=2)
+        ax.plot(x_above, tol_lower_above, color=TOL_COLOR, lw=1.6, zorder=2)
+    else:
+        ax.plot([], [], color=TOL_COLOR, lw=1.6, label=lab_above)
 
     # Data points — four categories, white-edged markers.
     ax.scatter(df_valid["X"], df_valid["Diff"], color="#16a34a", s=45, edgecolor="white",
@@ -365,7 +396,7 @@ def generate_plot(
                               (x_max, x_max_is_limit, "Maximum")):
         if np.isfinite(bx) and is_limit:
             ax.axvline(x=bx, color="#15803d", linestyle="--", lw=1, alpha=0.7, zorder=2)
-            ax.text(bx, 0.02, f" {tag}  x={bx:.2f}", transform=ax.get_xaxis_transform(),
+            ax.text(bx, 0.02, f" {tag}  x = {bx:.2f}{u}", transform=ax.get_xaxis_transform(),
                     rotation=90, va="bottom", ha="right", color="#15803d",
                     fontsize=8.5, fontweight="semibold", zorder=7)
 
@@ -405,8 +436,12 @@ def generate_plot(
     ax.text(0.006, 0.015, "Datta - Srivastava Plot", transform=ax.transAxes,
             fontsize=9, color="#9ca3af", style="italic", alpha=0.75,
             ha="left", va="bottom", zorder=1)
+    # The legend (from the top) and the summary box (from the x-axis) share
+    # one column and must not meet. Row spacing is tightened from matplotlib's
+    # 0.5 to make room; measured, the box already overlapped the legend by
+    # ~18px on some data before the tolerance rows were added.
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0.0,
-              frameon=False, fontsize=8.5)
+              frameon=False, fontsize=8.5, labelspacing=LEGEND_SPACING)
 
     # Summary box (previous style) — below the legend, right of the axes.
     min_text = f"{x_min:.2f}" if np.isfinite(x_min) else "None"
@@ -423,7 +458,9 @@ def generate_plot(
 
     # Each block states the span it is computed over: the overall block covers
     # every plotted point, the valid block only the clinically valid range.
-    data_range_text = f"{x_min_data:.2f} – {x_max_data:.2f}"
+    data_range_text = f"{x_min_data:.2f} – {x_max_data:.2f}{u}"
+    valid_range_text = (f"{min_text} – {max_text}{u}"
+                        if np.isfinite(x_min) and np.isfinite(x_max) else "None")
 
     # Regression coefficients with 95% CIs. On a difference plot the no-bias
     # value is 0 for BOTH (this slope is the classic slope minus 1), so a CI
@@ -438,8 +475,10 @@ def generate_plot(
         (f"Mean-diff / OLS angle: {ols_angle_deg:.2f}°", C_HEAD),
         ("", None),
         (f"REGRESSION LINE ({ols_level:g}% CI)", C_HEAD, "bold"),
+        # Slope has no unit: both axes are in it, so it cancels.
         (f"Slope: {slope:.4f}  [{s_lo:.4f}, {s_hi:.4f}]", c_slope),
-        (f"Intercept: {int_val:.3f}  [{i_lo:.3f}, {i_hi:.3f}]", c_int),
+        (f"Intercept{f' ({unit})' if unit else ''}: {int_val:.3f}  "
+         f"[{i_lo:.3f}, {i_hi:.3f}]", c_int),
         ("", None),
         ("OVERALL SUMMARY", C_HEAD, "bold"),
         (f"Overall plot range: {data_range_text}", C_NEUTRAL),
@@ -449,7 +488,7 @@ def generate_plot(
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD, "bold"),
-        (f"Valid measurable range: {min_text} – {max_text}"
+        (f"Valid measurable range: {valid_range_text}"
          + ("  (user-defined)" if manual_range else ""), C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),
@@ -467,7 +506,7 @@ def generate_plot(
         else:
             # Match the legend: same font family, size 8.5.
             children.append(TextArea(text, textprops=dict(color=color, fontsize=8.5, weight=weight)))
-    box = VPacker(children=children, align="left", pad=2, sep=2.5)
+    box = VPacker(children=children, align="left", pad=2, sep=BOX_LINE_SEP)
     # Bottom-anchored so the box's lower border sits on the x-axis; it grows
     # upward, which also keeps a clear gap below the legend.
     anchored = AnchoredOffsetbox(loc="lower left", child=box, pad=0.5, borderpad=0,
@@ -510,6 +549,7 @@ def generate_plot(
         # simply the edge of the data (only crossings get a vertical line).
         # "manual" when the range was declared rather than computed; the
         # calculated values are kept either way so the UI can show both.
+        "unit": unit,          # so the panel and the PDF label values the same way
         "range_mode": "manual" if manual_range else "calculated",
         "x_min_calc": float(x_min_calc),
         "x_max_calc": float(x_max_calc),
