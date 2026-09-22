@@ -119,6 +119,57 @@ def _drop_marked(marked):
     st.session_state["marked"] = []
 
 
+def _switch_param_data(name, params):
+    """Give each test parameter its own data table.
+
+    The table on screen stays in "data_df", so Clear, Select all and Deselect
+    work on it exactly as before. What changes is that, on switching
+    parameter, the outgoing one's table and marks are filed under its name in
+    "param_data", and the incoming one's are brought back — or a blank table,
+    the first time. Kept for the session only: measurement data is not
+    written to the database.
+
+    A parameter that had a plot when it was left is re-plotted on return from
+    the table as it is now, so the plot always matches what is shown. One
+    that was never plotted comes back as data only, waiting for Generate.
+    """
+    ss = st.session_state
+    held = ss.get("_data_param")
+    if held == name:
+        return
+    store = ss.setdefault("param_data", {})
+    if held is None:
+        # First run of the session: whatever is already loaded belongs to
+        # the parameter being shown, so adopt it rather than wipe it.
+        ss["_data_param"] = name
+        return
+    if "data_df" in ss:
+        store[held] = {"data_df": ss["data_df"],
+                       "marked": list(ss.get("marked", [])),
+                       "plotted": ss.get("result") is not None}
+    # A parameter deleted from Configurations leaves nothing to come back to.
+    for k in [k for k in store if k not in params]:
+        del store[k]
+
+    saved = store.get(name, {})
+    ss["data_df"] = saved.get("data_df", _blank_data())
+    ss["marked"] = list(saved.get("marked", []))
+    # A fresh editor for the new frame, so the old one's cell edits are not
+    # replayed on top of it.
+    ss["data_gen"] = ss.get("data_gen", 0) + 1
+    # A fresh uploader too: the file still sitting in the old one would
+    # otherwise load itself straight into the new parameter's table.
+    ss["upload_gen"] = ss.get("upload_gen", 0) + 1
+    ss.pop("upload_sig", None)
+    # The plot belonged to the other parameter. click_n is deliberately kept:
+    # the plot component replays its last click on every run, and that guard
+    # is what stops a click made there being applied here.
+    for k in ("result", "error", "pdf_name", "last_opts", "_payload_cache"):
+        ss.pop(k, None)
+    ss["_auto_generate"] = bool(saved.get("plotted"))
+    ss["_data_param"] = name
+
+
 def _excel_sheets(upload):
     """Sheet names in an uploaded workbook, cached per file.
 
@@ -545,9 +596,16 @@ def page_dashboard():
                 except Exception:
                     remembered = None
             idx = names.index(remembered) if remembered in names else 0
+            # A fixed key keeps the widget's identity stable. Without one it
+            # is identified by its arguments, index included — and index moves
+            # a run after each change, so a second change made straight after
+            # a first landed on a widget that no longer existed and was lost.
+            # index still decides the value whenever the widget is created
+            # afresh: after another tab, or a reload.
             param_name = st.selectbox(
                 "Test parameter", names, index=idx, label_visibility="collapsed",
                 format_func=lambda k: k + (f" ({params[k]['unit']})" if params[k].get("unit") else ""),
+                key="param_select",
             )
             if st.session_state.get("sel_param") != param_name:
                 st.session_state["sel_param"] = param_name
@@ -556,6 +614,8 @@ def page_dashboard():
                 except Exception:
                     pass          # no URL to write to (tests, embedded use)
         p = params[param_name]
+        # Before the table is drawn: give it this parameter's own data.
+        _switch_param_data(param_name, params)
         with cc[1]:
             st.markdown(lbl.format("Tolerance limits"), unsafe_allow_html=True)
             if config_store.has_threshold(p):
@@ -621,7 +681,10 @@ def page_dashboard():
             st.rerun()
 
         if mode == "Upload Excel":
-            up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"])
+            # Keyed per parameter visit (see _switch_param_data) so a file
+            # uploaded for one parameter is not carried over to the next.
+            up = st.file_uploader("Excel file (.xlsx / .xls)", type=["xlsx", "xls"],
+                                  key=f"upload_{st.session_state.get('upload_gen', 0)}")
             sheet = None
             if up is None:
                 st.selectbox("Sheet name", ["—"], disabled=True,
@@ -816,7 +879,10 @@ def page_dashboard():
     # rows recovers the plot after an error (e.g. everything was deselected).
     opts_changed = ("last_opts" in st.session_state
                     and st.session_state["last_opts"] != current_opts)
-    if generate or opts_changed:
+    # Returning to a parameter that had a plot re-plots it from its table.
+    # Not counted as a generation below — only an explicit click is.
+    returning = st.session_state.pop("_auto_generate", False)
+    if generate or opts_changed or returning:
         try:
             result = generate_plot(
                 edited_df, x_basis=x_basis,
