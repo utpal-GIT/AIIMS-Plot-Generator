@@ -93,13 +93,13 @@ def generate_plot(
 
     ols_ci  — confidence level (%) for the regression band and for the slope
               and intercept intervals. It also sets the valid measurable
-              range, whose boundaries are CI x tolerance crossings, so a
+              interval, whose boundaries are CI x tolerance crossings, so a
               higher level gives a wider band and a narrower valid range.
     mean_ci — confidence level (%) for the interval around the mean
               difference. Independent of the Limits of Agreement, which stay
               at the conventional +/-1.96 SD.
 
-    range_mode — "calculated" (default) derives the valid measurable range
+    range_mode — "calculated" (default) derives the valid measurable interval
               from the CI x tolerance crossings; "manual" takes range_min and
               range_max as given. The declared bounds are reported as typed,
               but the shading and the boundary lines are clipped to the span
@@ -254,10 +254,10 @@ def generate_plot(
     if manual_range:
         if (range_min is None or range_max is None
                 or not np.isfinite(float(range_min)) or not np.isfinite(float(range_max))):
-            raise ValueError("Valid measurable range: enter both a minimum and a maximum.")
+            raise ValueError("Valid measurable interval: enter both a minimum and a maximum.")
         x_min, x_max = float(range_min), float(range_max)
         if x_min >= x_max:
-            raise ValueError("Valid measurable range: the minimum must be less than "
+            raise ValueError("Valid measurable interval: the minimum must be less than "
                              "the maximum.")
         # A boundary line marks where the range ends within the plot. A bound
         # outside the data has nothing to mark, so it gets no line — the same
@@ -488,7 +488,7 @@ def generate_plot(
         (f"     • Underestimated: {ov['under_n']} ({ov['under_pct']:.1f}%)", C_NEUTRAL),
         ("", None),
         ("VALID RANGE SUMMARY", C_HEAD, "bold"),
-        (f"Valid measurable range: {valid_range_text}"
+        (f"Valid measurable interval: {valid_range_text}"
          + ("  (user-defined)" if manual_range else ""), C_NEUTRAL),
         (f"Data points in valid range: {vr['n_points']} ({vr['n_points_pct']:.1f}%)", C_NEUTRAL),
         (f"Outliers: {vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", C_AMBER),

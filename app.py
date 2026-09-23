@@ -816,7 +816,7 @@ def page_dashboard():
             "OLS confidence (%)", min_value=50.0, max_value=99.9,
             value=float(plot_logic.DEFAULT_CI), step=1.0, format="%.1f",
             help="Level for the regression band and for the slope and intercept "
-                 "intervals. The valid measurable range is where that band stays "
+                 "intervals. The valid measurable interval is where that band stays "
                  "inside the tolerance limits, so a higher level widens the band "
                  "and narrows the valid range.")
         mean_ci = cc[1].number_input(
@@ -825,7 +825,7 @@ def page_dashboard():
             help="Level for the interval around the mean difference (the red band). "
                  "The Limits of Agreement are separate and stay at ±1.96 SD.")
 
-        # --- Valid measurable range: computed, or declared by the user ---
+        # --- Valid measurable interval: computed, or declared by the user ---
         def _calc_range():
             """The range to start the manual boxes from: what the last plot
             computed, else the span of the data on the chosen x basis."""
@@ -848,7 +848,7 @@ def page_dashboard():
 
         rc = st.columns([1.7, 1, 1, 1.4])
         range_mode = rc[0].radio(
-            "Valid measurable range", ["Calculated", "Manual"], horizontal=True,
+            "Valid measurable interval", ["Calculated", "Manual"], horizontal=True,
             help="Calculated: where the OLS band stays inside the tolerance limits. "
                  "Manual: the range you declare, which then drives the shaded region, "
                  "the point categories and the valid-range counts.")
@@ -1221,8 +1221,8 @@ def _render_statistics(s, excluded_n=0):
         ("Underestimated", f"{ov['under_n']} ({ov['under_pct']:.1f}%)", "#334155", True),
     ]
     valid_rows = [
-        ("Valid measurable range (user-defined)" if user_range
-         else "Valid measurable range", rng, "#334155"),
+        ("Valid measurable interval (user-defined)" if user_range
+         else "Valid measurable interval", rng, "#334155"),
         ("Data points in valid range", f"{vr['n_points']} ({vr['n_points_pct']:.1f}%)", "#334155"),
         ("Outliers", f"{vr['outliers_n']} ({vr['outliers_pct']:.1f}%)", "#f59e0b"),
         ("Overestimated", f"{vr['over_n']} ({vr['over_pct']:.1f}%)", "#f59e0b", True),
