@@ -1,5 +1,14 @@
 # [auth] pulls in the OIDC extra used by st.login / st.user
 streamlit[auth]==1.57.0
+# Streamlit 1.57's gzip middleware overrides Starlette internals that
+# changed in Starlette 1.5.0, which also began excluding image/png from
+# compression. On 1.5+ every PNG the server sends fails with HTTP 500
+# ("Expected ASGI message 'http.response.start', but got
+# 'http.response.body'") -- the plot download, and the app's favicon.
+# Streamlit only requires starlette>=0.40, so without this the host
+# installs the newest. Reproduced on 1.10.0; 1.4.1 serves PNGs fine.
+# Lift once a Streamlit release is tested against newer Starlette.
+starlette>=1.0,<1.5
 pandas>=2.0
 numpy>=1.24
 matplotlib>=3.7
