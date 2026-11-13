@@ -94,11 +94,17 @@ def _exports(result, param, name, username):
     buf = io.BytesIO()
     result.fig.savefig(buf, format="png", dpi=200, bbox_inches="tight")
     png = buf.getvalue()
-    pdf = report.build_pdf(
-        result.fig, result.stats, parameter=name, unit=param.get("unit", ""),
-        tol=param, username=username,
-        logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None,
-        image_bytes=png)
+    args = dict(parameter=name, unit=param.get("unit", ""), tol=param,
+                username=username,
+                logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
+    try:
+        pdf = report.build_pdf(result.fig, result.stats, image_bytes=png, **args)
+    except TypeError:
+        # A deploy reloads this script but can leave the previous report
+        # module in memory, where build_pdf has no image_bytes. Let it render
+        # the figure itself until the app is restarted, rather than failing
+        # the whole page.
+        pdf = report.build_pdf(result.fig, result.stats, **args)
     files = (png, pdf, _results_csv(result))
     st.session_state["_export_cache"] = ((gen, name), files)
     return files
