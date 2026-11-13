@@ -46,8 +46,14 @@ def _kv_table(rows, col_widths):
     return t
 
 
-def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
-    """Return PDF bytes for the given figure + stats."""
+def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None,
+              image_bytes=None):
+    """Return PDF bytes for the given figure + stats.
+
+    image_bytes — the figure already rendered as PNG. Rendering it is most of
+    the cost of this function, and the caller has the same image for the PNG
+    download, so passing it in avoids doing the work twice.
+    """
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=16 * mm, bottomMargin=16 * mm,
@@ -92,8 +98,11 @@ def build_pdf(fig, stats, *, parameter, unit, tol, username, logo_path=None):
 
     # Plot image
     story.append(Paragraph("Plot", ss["Sec"]))
-    img_buf = io.BytesIO()
-    fig.savefig(img_buf, format="png", dpi=200, bbox_inches="tight")
+    if image_bytes:
+        img_buf = io.BytesIO(image_bytes)
+    else:
+        img_buf = io.BytesIO()
+        fig.savefig(img_buf, format="png", dpi=200, bbox_inches="tight")
     img_buf.seek(0)
     story.append(Image(img_buf, width=170 * mm, height=95 * mm))
     story.append(Spacer(1, 6))

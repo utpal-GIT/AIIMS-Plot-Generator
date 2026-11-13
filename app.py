@@ -79,6 +79,31 @@ def _plot_payload(result, dpi=150):
     return {"img": f"data:image/png;base64,{b64}", "points": points}
 
 
+def _exports(result, param, name, username):
+    """(png, pdf, csv) for this plot, built once and reused.
+
+    Keyed on plot_gen like the on-screen image, so the cost falls on
+    generating a plot rather than on every rerun. The PDF is handed the PNG
+    rather than re-rendering the figure, which is most of what it costs.
+    """
+    gen = st.session_state.get("plot_gen", 0)
+    cached = st.session_state.get("_export_cache")
+    if cached and cached[0] == (gen, name):
+        return cached[1]
+
+    buf = io.BytesIO()
+    result.fig.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+    png = buf.getvalue()
+    pdf = report.build_pdf(
+        result.fig, result.stats, parameter=name, unit=param.get("unit", ""),
+        tol=param, username=username,
+        logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None,
+        image_bytes=png)
+    files = (png, pdf, _results_csv(result))
+    st.session_state["_export_cache"] = ((gen, name), files)
+    return files
+
+
 def _cached_payload(result):
     """_plot_payload, computed once per generated figure.
 
@@ -164,7 +189,8 @@ def _switch_param_data(name, params):
     # The plot belonged to the other parameter. click_n is deliberately kept:
     # the plot component replays its last click on every run, and that guard
     # is what stops a click made there being applied here.
-    for k in ("result", "error", "pdf_name", "last_opts", "_payload_cache"):
+    for k in ("result", "error", "pdf_name", "last_opts", "_payload_cache",
+              "_export_cache"):
         ss.pop(k, None)
     ss["_auto_generate"] = bool(saved.get("plotted"))
     ss["_data_param"] = name
@@ -667,7 +693,7 @@ def page_dashboard():
             st.session_state["data_df"] = _blank_data()
             st.session_state["data_gen"] = st.session_state.get("data_gen", 0) + 1
             for k in ("result", "error", "pdf_name", "last_opts", "marked",
-                      "_payload_cache"):
+                      "_payload_cache", "_export_cache"):
                 st.session_state.pop(k, None)
             st.rerun()
 
@@ -985,38 +1011,34 @@ def page_dashboard():
             # Marking controls live on the plot's own toolbar (see
             # plot_click/index.html) so they work full screen too; a second
             # copy here would just duplicate them.
-            # Every export is built by a callable, which Streamlit runs only
-            # when the button is actually clicked (on its own thread). Building
-            # them up front cost ~230 ms for the PNG and ~450 ms for the PDF on
-            # every rerun, for files that are usually never downloaded.
-            def _png_bytes(fig=result.fig):
-                buf = io.BytesIO()
-                fig.savefig(buf, format="png", dpi=200, bbox_inches="tight")
-                return buf.getvalue()
-
-            def _pdf_bytes(res=result, prm=p, name=param_name):
-                return report.build_pdf(
-                    res.fig, res.stats, parameter=name, unit=prm.get("unit", ""),
-                    tol=prm, username=current_username,
-                    logo_path=LOGO_PATH if os.path.exists(LOGO_PATH) else None)
-
-            def _data_csv(res=result):
-                return _results_csv(res)
+            # Each export is built once per generated plot and cached, then
+            # handed to the button as bytes.
+            #
+            # Streamlit can also take a callable and run it on click, which
+            # looks ideal — nothing is built for a file nobody downloads. But
+            # the file it then generates is referenced by no session, so the
+            # next two reruns delete it; a browser that asks for it after that
+            # gets a 404, which is a failed download. On a hosted app the
+            # round trip is slow enough for that to happen in practice.
+            # Bytes passed in are held for the session, so the link keeps
+            # working.
+            png_bytes, pdf_bytes, csv_bytes = _exports(
+                result, p, param_name, current_username)
 
             bc = st.columns([1, 1, 1, 1])
             got_png = bc[0].download_button(
-                "Download plot (PNG)", _png_bytes,
+                "Download plot (PNG)", png_bytes,
                 file_name=f"Datta - Srivastava Plot - {param_name}.png",
                 mime="image/png", icon=":material/image:",
                 use_container_width=True, key="dl_png")
             got_pdf = bc[1].download_button(
-                "Export report", _pdf_bytes,
+                "Export report", pdf_bytes,
                 file_name=st.session_state.get("pdf_name", "report.pdf"),
                 mime="application/pdf",
                 icon=":material/description:", use_container_width=True,
                 key="dl_report_plot")
             got_csv = bc[2].download_button(
-                "Export data (CSV)", _data_csv,
+                "Export data (CSV)", csv_bytes,
                 file_name=f"Datta - Srivastava Data - {param_name}.csv",
                 mime="text/csv", icon=":material/table:",
                 use_container_width=True, key="dl_data_csv")
