@@ -10,7 +10,8 @@ import pandas as pd
 import matplotlib
 
 matplotlib.use("Agg")  # headless backend for web/server rendering
-import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 from matplotlib.offsetbox import TextArea, VPacker, AnchoredOffsetbox
 import statsmodels.api as sm
 from scipy import stats as sps
@@ -318,7 +319,16 @@ def generate_plot(
     df_out_outlier = df_out_x[df_out_x["is_outlier"]]       # out of range + outside tol
 
     # ---- 8. Plot (modern styling) ----
-    fig, ax = plt.subplots(figsize=(12, 6.5))
+    # Built as a bare Figure, not through pyplot. pyplot registers every
+    # figure it makes and keeps it until it is explicitly closed, so each plot
+    # leaked ~4.6MB for the life of the server; on a hosted app that runs
+    # until the platform restarts it for memory, which also wipes every
+    # download link the server is holding. A bare Figure is freed as soon as
+    # nothing refers to it. The Agg canvas is what lets the caller draw it to
+    # place the hover targets.
+    fig = Figure(figsize=(12, 6.5))
+    FigureCanvasAgg(fig)
+    ax = fig.subplots()
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
     ax.set_axisbelow(True)
